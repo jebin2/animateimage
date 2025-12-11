@@ -24,9 +24,9 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onClose, onSubmit, er
         </div>
 
         {errorMessage ? (
-          <div className="mb-4 p-3 bg-red-900/20 border border-red-900/50 rounded-lg flex items-start gap-2 overflow-x-auto">
+          <div className="mb-4 p-3 bg-red-900/20 border border-red-900/50 rounded-lg flex items-start gap-2 max-h-32 overflow-y-auto">
             <AlertCircleIcon className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
-            <p className="text-sm text-red-200 font-medium whitespace-nowrap">{errorMessage}</p>
+            <p className="text-sm text-red-200 font-medium break-all">{errorMessage}</p>
           </div>
         ) : (
           <p className="text-slate-400 text-sm mb-6 leading-relaxed">
