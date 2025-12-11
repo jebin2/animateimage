@@ -86,6 +86,9 @@ const App: React.FC = () => {
     } catch (error: any) {
       console.error(error);
 
+      // Record failure
+      recordUsage('generate_failure', mode).catch(() => { });
+
       const errorMsg = error.message || (typeof error === 'string' ? error : JSON.stringify(error));
 
       const isAuthOrNotFoundError =
