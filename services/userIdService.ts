@@ -134,3 +134,55 @@ export async function refreshUserId(): Promise<string> {
     cachedUserId = null;
     return getOrCreateUserId();
 }
+
+// Update user ID manually (e.g. from secret key recovery)
+export async function updateUserId(newUserId: string): Promise<void> {
+    cachedUserId = newUserId;
+    setCookie(newUserId);
+    await saveIdToIndexedDB(newUserId);
+}
+
+// Secret Key & Credits Management
+export async function saveSecretKey(key: string): Promise<void> {
+    try {
+        const db = await openUserDatabase();
+        const transaction = db.transaction(['user'], 'readwrite');
+        const store = transaction.objectStore('user');
+        store.put(key, 'secret_key');
+    } catch { /* silent fail */ }
+}
+
+export async function getSecretKey(): Promise<string | null> {
+    try {
+        const db = await openUserDatabase();
+        return new Promise((resolve) => {
+            const transaction = db.transaction(['user'], 'readonly');
+            const store = transaction.objectStore('user');
+            const request = store.get('secret_key');
+            request.onsuccess = () => resolve(request.result as string || null);
+            request.onerror = () => resolve(null);
+        });
+    } catch { return null; }
+}
+
+export async function saveCredits(credits: number): Promise<void> {
+    try {
+        const db = await openUserDatabase();
+        const transaction = db.transaction(['user'], 'readwrite');
+        const store = transaction.objectStore('user');
+        store.put(credits, 'credits');
+    } catch { /* silent fail */ }
+}
+
+export async function getCredits(): Promise<number | null> {
+    try {
+        const db = await openUserDatabase();
+        return new Promise((resolve) => {
+            const transaction = db.transaction(['user'], 'readonly');
+            const store = transaction.objectStore('user');
+            const request = store.get('credits');
+            request.onsuccess = () => resolve(request.result as number || null);
+            request.onerror = () => resolve(null);
+        });
+    } catch { return null; }
+}
