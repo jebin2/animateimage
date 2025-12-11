@@ -142,29 +142,9 @@ export async function updateUserId(newUserId: string): Promise<void> {
     await saveIdToIndexedDB(newUserId);
 }
 
-// Secret Key & Credits Management
-export async function saveSecretKey(key: string): Promise<void> {
-    try {
-        const db = await openUserDatabase();
-        const transaction = db.transaction(['user'], 'readwrite');
-        const store = transaction.objectStore('user');
-        store.put(key, 'secret_key');
-    } catch { /* silent fail */ }
-}
 
-export async function getSecretKey(): Promise<string | null> {
-    try {
-        const db = await openUserDatabase();
-        return new Promise((resolve) => {
-            const transaction = db.transaction(['user'], 'readonly');
-            const store = transaction.objectStore('user');
-            const request = store.get('secret_key');
-            request.onsuccess = () => resolve(request.result as string || null);
-            request.onerror = () => resolve(null);
-        });
-    } catch { return null; }
-}
 
+// Credits Management
 export async function saveCredits(credits: number): Promise<void> {
     try {
         const db = await openUserDatabase();

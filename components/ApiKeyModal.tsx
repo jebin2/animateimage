@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { SparklesIcon, AlertCircleIcon, CreditCardIcon } from './Icons';
 import { authService, AuthResponse } from '../services/authService';
-import { updateUserId, getSecretKey, saveSecretKey, saveCredits, getCredits } from '../services/userIdService';
+import { updateUserId, saveCredits, getCredits } from '../services/userIdService';
 import CreditRegistrationModal from './CreditRegistrationModal';
 
 interface ApiKeyModalProps {
@@ -34,17 +34,6 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onClose, onSubmit, er
       setShowReset(false);
       setResetMessage(null);
       setCredits(null);
-
-      // Check for existing secret key
-      getSecretKey().then(storedKey => {
-        if (storedKey) {
-          setUseCredit(true);
-          setKey(storedKey);
-          setIsRegistered(true);
-          // Optimistically fetch credits
-          getCredits().then(c => setCredits(c));
-        }
-      });
     }
   }, [isOpen]);
 
@@ -116,7 +105,7 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onClose, onSubmit, er
 
       if (response.success && response.user_id) {
         await updateUserId(response.user_id);
-        await saveSecretKey(key.trim());
+        // await saveSecretKey(key.trim()); // Removed persistence
         if (response.credits !== undefined) {
           await saveCredits(response.credits);
           setCredits(response.credits);
