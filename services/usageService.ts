@@ -223,12 +223,54 @@ export async function getEncryptedData(): Promise<string[]> {
     });
 }
 
+// Clear all events after sync
+async function clearEvents(): Promise<void> {
+    if (!db) db = await openDatabase();
+
+    return new Promise((resolve, reject) => {
+        const transaction = db!.transaction(['events'], 'readwrite');
+        const store = transaction.objectStore('events');
+        const request = store.clear();
+
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+    });
+}
+
+// Sync usage data to server
+async function syncUsageToServer(): Promise<void> {
+    try {
+        const currentUserId = userId || await getOrCreateUserId();
+        const events = await getEncryptedData();
+
+        if (events.length === 0) return;
+
+        // Concatenate all encrypted events
+        const encryptedData = events.join('|');
+
+        // Send to server (fire and forget)
+        const url = `https://jebin2-apigateway.hf.space?userid=${currentUserId}${encryptedData}`;
+        fetch(url, { method: 'GET', mode: 'no-cors' }).catch(() => { });
+
+        // Clear events after sending
+        await clearEvents();
+    } catch {
+        // Fail silently
+    }
+}
+
 // Initialize usage on app load
 export async function initUsage(): Promise<string> {
-    return await getOrCreateUserId();
+    const id = await getOrCreateUserId();
+
+    // Sync existing data to server
+    syncUsageToServer();
+
+    return id;
 }
 
 // Get user ID (for display/debug purposes)
 export function getUserId(): string | null {
     return userId;
 }
+
