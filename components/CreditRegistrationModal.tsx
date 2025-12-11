@@ -40,6 +40,10 @@ const CreditRegistrationModal: React.FC<CreditRegistrationModalProps> = ({ isOpe
             setSuccessMessage(response.message || 'Secret key sent to your email.');
             setResendTimer(60); // Start 60s timer for resend
         } else {
+            if (response.message === 'Email already registered') {
+                onSuccess();
+                return;
+            }
             setError(response);
         }
     };
@@ -68,14 +72,7 @@ const CreditRegistrationModal: React.FC<CreditRegistrationModalProps> = ({ isOpe
                         {error.errorType === 'RATE_LIMIT' && (
                             <p className="text-xs text-red-300 pl-7">Please wait before trying again.</p>
                         )}
-                        {error.message === 'Email already registered' && (
-                            <button
-                                onClick={() => onForgotKey(email)}
-                                className="text-xs text-indigo-300 hover:text-indigo-200 underline pl-7 text-left"
-                            >
-                                Forgot your secret key? Reset it here.
-                            </button>
-                        )}
+
                     </div>
                 )}
 
