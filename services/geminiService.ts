@@ -17,8 +17,12 @@ export interface VideoGenerationOptions {
   numberOfVideos?: number;
 }
 
-// Default animation prompt
-const DEFAULT_ANIMATION_PROMPT = `Analyze this image and create a concise prompt for a video generation model to create a cinematic, loopable animation. Identify the most interesting moving element (e.g., flowing water, swaying trees, flickering light, clouds) and describe the motion. Output ONLY the description, under 30 words.`;
+// Default animation prompt - configurable
+let DEFAULT_ANIMATION_PROMPT = ``;
+
+export function configureGeminiService(config: { defaultAnimationPrompt: string }) {
+  DEFAULT_ANIMATION_PROMPT = config.defaultAnimationPrompt;
+}
 
 // Model names - easily configurable
 const MODELS = {

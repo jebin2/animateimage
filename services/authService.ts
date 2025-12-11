@@ -1,6 +1,9 @@
 import { getUserId } from './userIdService';
 
-const API_BASE_URL = 'https://jebin2-apigateway.hf.space';
+let API_BASE_URL = 'https://jebin2-apigateway.hf.space';
+export function configureAuthService(config: { baseUrl: string }) {
+    API_BASE_URL = config.baseUrl;
+}
 
 export interface AuthResponse {
     success: boolean;

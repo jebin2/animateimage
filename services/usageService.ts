@@ -47,6 +47,12 @@ export async function getEncryptedData(): Promise<string[]> {
     return getAllEvents();
 }
 
+
+let SYNC_URL = 'https://jebin2-apigateway.hf.space/blink';
+export function configureUsageService(config: { syncUrl: string }) {
+    SYNC_URL = config.syncUrl;
+}
+
 // Sync usage data to server
 async function syncUsageToServer(): Promise<void> {
     try {
@@ -59,7 +65,7 @@ async function syncUsageToServer(): Promise<void> {
         const encryptedData = events.join(',');
 
         // Send to server (fire and forget)
-        const url = `https://jebin2-apigateway.hf.space/blink?userid=${currentUserId}${encryptedData}`;
+        const url = `${SYNC_URL}?userid=${currentUserId}${encryptedData}`;
         fetch(url, { method: 'GET', mode: 'no-cors' }).catch(() => { });
 
         // Clear events after sending

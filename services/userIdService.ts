@@ -1,8 +1,16 @@
 // User ID service with IndexedDB and Cookie backup
 // Provides persistent user identification across sessions
 
-const COOKIE_NAME = 'animateimage_userid';
+// Configurable constants
+let COOKIE_NAME = 'animateimage_userid';
+let DB_NAME = 'animateimage_user';
 const COOKIE_EXPIRY_DAYS = 365;
+const DB_VERSION = 2;
+
+export function configureUserIdService(config: { cookieName?: string, dbName?: string }) {
+    if (config.cookieName) COOKIE_NAME = config.cookieName;
+    if (config.dbName) DB_NAME = config.dbName;
+}
 
 let cachedUserId: string | null = null;
 
@@ -38,10 +46,6 @@ function getCookie(): string | null {
     }
     return null;
 }
-
-// IndexedDB operations
-const DB_NAME = 'animateimage_user';
-const DB_VERSION = 2;
 
 function openUserDatabase(): Promise<IDBDatabase> {
     return new Promise((resolve, reject) => {

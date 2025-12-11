@@ -1,6 +1,10 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import { initServices } from './services/initServices';
+
+// Initialize services with app-specific config
+initServices();
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

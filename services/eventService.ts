@@ -2,7 +2,10 @@
 // Event storage service using IndexedDB
 // Handles encrypted event persistence and retrieval
 
-const DB_NAME = 'animateimage_events';
+let DB_NAME = 'animateimage_events';
+export function configureEventService(config: { dbName: string }) {
+    DB_NAME = config.dbName;
+}
 const DB_VERSION = 2;
 
 let db: IDBDatabase | null = null;
