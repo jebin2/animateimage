@@ -173,7 +173,9 @@ async function getOrCreateUserId(): Promise<string> {
 // Record a usage event
 export async function recordUsage(type: 'generate_click' | 'generate_success', mode: 'animate' | 'edit'): Promise<void> {
     try {
+        console.log('recordUsage called:', type, mode);
         const currentUserId = await getOrCreateUserId();
+        console.log('Got userId:', currentUserId);
 
         const event: UsageEvent = {
             type,
@@ -186,9 +188,12 @@ export async function recordUsage(type: 'generate_click' | 'generate_success', m
             events: [event]
         };
 
+        console.log('About to encrypt:', dataToEncrypt);
         const encryptedData = await encryptData(JSON.stringify(dataToEncrypt));
+        console.log('Encrypted successfully, length:', encryptedData.length);
 
         if (!db) db = await openDatabase();
+        console.log('Database opened');
 
         return new Promise((resolve, reject) => {
             const transaction = db!.transaction(['events'], 'readwrite');
