@@ -66,8 +66,11 @@ export const authService = {
         try {
             const response = await fetch(`${API_BASE_URL}/auth/validate`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ secret_key: secretKey }),
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Secret-Key': secretKey
+                },
+                body: JSON.stringify({}),
             });
 
             const data = await response.json();
