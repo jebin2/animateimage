@@ -74,6 +74,7 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onClose, onSubmit, er
   const handleRegistrationSuccess = () => {
     setShowRegistration(false);
     setIsRegistered(true);
+    setUseCredit(true);
   };
 
   const handleResetKey = async () => {
