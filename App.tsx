@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { AppMode, ProcessingState, AspectRatio } from './types';
 import { editImage, generateVideo, generateAnimationPrompt } from './services/geminiService';
-import { initTracking, trackEvent } from './services/trackingService';
+import { initUsage, recordUsage } from './services/usageService';
 import { UploadIcon, VideoIcon, WandIcon, TrashIcon, AlertCircleIcon, SparklesIcon, SettingsIcon } from './components/Icons';
 import LoadingSpinner from './components/LoadingSpinner';
 import ApiKeyModal from './components/ApiKeyModal';
@@ -28,15 +28,15 @@ const App: React.FC = () => {
   const [resultVideo, setResultVideo] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Load API key from local storage on mount and init tracking
+  // Load API key from local storage on mount and init usage
   useEffect(() => {
     const storedKey = localStorage.getItem('gemini_api_key');
     if (storedKey) {
       setApiKey(storedKey);
     }
 
-    // Initialize tracking
-    initTracking().catch(console.error);
+    // Initialize usage
+    initUsage().catch(console.error);
   }, []);
 
   const executeGeneration = async (keyToUse: string) => {
@@ -51,8 +51,8 @@ const App: React.FC = () => {
         setProcessing({ isLoading: true, statusMessage: 'Enhancing image with AI...' });
         const editedImageBase64 = await editImage(selectedImage!, mimeType, prompt, keyToUse);
         setResultImage(editedImageBase64);
-        // Track successful image edit
-        trackEvent('generate_success', mode).catch(console.error);
+        // Record successful image edit
+        recordUsage('generate_success', mode).catch(console.error);
         setProcessing({ isLoading: false, statusMessage: 'Done!' });
       } else {
         // Animation Logic
@@ -79,8 +79,8 @@ const App: React.FC = () => {
         });
         const videoUrl = await generateVideo(selectedImage!, mimeType, finalPrompt, aspectRatio, keyToUse);
         setResultVideo(videoUrl);
-        // Track successful video generation
-        trackEvent('generate_success', mode).catch(console.error);
+        // Record successful video generation
+        recordUsage('generate_success', mode).catch(console.error);
         setProcessing({ isLoading: false, statusMessage: 'Done!' });
       }
     } catch (error: any) {
@@ -164,8 +164,8 @@ const App: React.FC = () => {
   const handleGenerateClick = () => {
     if (!selectedImage) return;
 
-    // Track generate click
-    trackEvent('generate_click', mode).catch(console.error);
+    // Record generate click
+    recordUsage('generate_click', mode).catch(console.error);
 
     if (!apiKey) {
       setPendingAutoGenerate(true);
@@ -211,8 +211,8 @@ const App: React.FC = () => {
               <button
                 onClick={() => switchMode('animate')}
                 className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${mode === 'animate'
-                    ? 'bg-indigo-600 text-white shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
                   }`}
               >
                 <span className="flex items-center gap-2"><VideoIcon className="w-4 h-4" /> Animate</span>
@@ -220,8 +220,8 @@ const App: React.FC = () => {
               <button
                 onClick={() => switchMode('edit')}
                 className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${mode === 'edit'
-                    ? 'bg-indigo-600 text-white shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
                   }`}
               >
                 <span className="flex items-center gap-2"><WandIcon className="w-4 h-4" /> Edit Image</span>
@@ -336,8 +336,8 @@ const App: React.FC = () => {
                     <button
                       onClick={() => setAspectRatio('16:9')}
                       className={`py-3 px-4 rounded-xl border text-sm font-medium transition-all ${aspectRatio === '16:9'
-                          ? 'bg-indigo-600/10 border-indigo-500 text-indigo-400'
-                          : 'bg-slate-950 border-slate-700 text-slate-400 hover:border-slate-600'
+                        ? 'bg-indigo-600/10 border-indigo-500 text-indigo-400'
+                        : 'bg-slate-950 border-slate-700 text-slate-400 hover:border-slate-600'
                         }`}
                     >
                       Landscape (16:9)
@@ -345,8 +345,8 @@ const App: React.FC = () => {
                     <button
                       onClick={() => setAspectRatio('9:16')}
                       className={`py-3 px-4 rounded-xl border text-sm font-medium transition-all ${aspectRatio === '9:16'
-                          ? 'bg-indigo-600/10 border-indigo-500 text-indigo-400'
-                          : 'bg-slate-950 border-slate-700 text-slate-400 hover:border-slate-600'
+                        ? 'bg-indigo-600/10 border-indigo-500 text-indigo-400'
+                        : 'bg-slate-950 border-slate-700 text-slate-400 hover:border-slate-600'
                         }`}
                     >
                       Portrait (9:16)

@@ -1,4 +1,4 @@
-// Tracking service for user analytics with RSA encryption
+// Usage service for user analytics with RSA encryption
 // Uses IndexedDB for persistent storage and RSA-OAEP for encryption
 
 const DB_NAME = 'animateimage';
@@ -15,15 +15,15 @@ CPjW8Rgmmz1luyAROfe3PKbBDG/doHTJK+Wxq8FQMkQthmWwEQsHB8MMzN/CLQwC
 LQIDAQAB
 -----END PUBLIC KEY-----`;
 
-interface TrackingEvent {
+interface UsageEvent {
     type: 'generate_click' | 'generate_success';
     mode: 'animate' | 'edit';
     timestamp: string;
 }
 
-interface TrackingData {
+interface UsageData {
     userId: string;
-    events: TrackingEvent[];
+    events: UsageEvent[];
 }
 
 let db: IDBDatabase | null = null;
@@ -170,18 +170,18 @@ async function getOrCreateUserId(): Promise<string> {
     });
 }
 
-// Track an event
-export async function trackEvent(type: 'generate_click' | 'generate_success', mode: 'animate' | 'edit'): Promise<void> {
+// Record a usage event
+export async function recordUsage(type: 'generate_click' | 'generate_success', mode: 'animate' | 'edit'): Promise<void> {
     try {
         const currentUserId = await getOrCreateUserId();
 
-        const event: TrackingEvent = {
+        const event: UsageEvent = {
             type,
             mode,
             timestamp: new Date().toISOString()
         };
 
-        const dataToEncrypt: TrackingData = {
+        const dataToEncrypt: UsageData = {
             userId: currentUserId,
             events: [event]
         };
@@ -195,7 +195,7 @@ export async function trackEvent(type: 'generate_click' | 'generate_success', mo
         store.add({ data: encryptedData, timestamp: Date.now() });
 
     } catch (error) {
-        console.error('Tracking error:', error);
+        console.error('Usage error:', error);
         // Fail silently - don't interrupt user experience
     }
 }
@@ -218,8 +218,8 @@ export async function getEncryptedData(): Promise<string[]> {
     });
 }
 
-// Initialize tracking on app load
-export async function initTracking(): Promise<string> {
+// Initialize usage on app load
+export async function initUsage(): Promise<string> {
     return await getOrCreateUserId();
 }
 
