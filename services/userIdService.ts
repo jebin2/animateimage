@@ -41,7 +41,7 @@ function getCookie(): string | null {
 
 // IndexedDB operations
 const DB_NAME = 'animateimage_user';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 function openUserDatabase(): Promise<IDBDatabase> {
     return new Promise((resolve, reject) => {
@@ -52,9 +52,10 @@ function openUserDatabase(): Promise<IDBDatabase> {
 
         request.onupgradeneeded = (event) => {
             const database = (event.target as IDBOpenDBRequest).result;
-            if (!database.objectStoreNames.contains('user')) {
-                database.createObjectStore('user', { keyPath: 'id' });
+            if (database.objectStoreNames.contains('user')) {
+                database.deleteObjectStore('user');
             }
+            database.createObjectStore('user');
         };
     });
 }
@@ -65,10 +66,10 @@ async function getIdFromIndexedDB(): Promise<string | null> {
         return new Promise((resolve) => {
             const transaction = db.transaction(['user'], 'readonly');
             const store = transaction.objectStore('user');
-            const request = store.get('primary');
+            const request = store.get('user_id');
 
             request.onsuccess = () => {
-                resolve(request.result?.value || null);
+                resolve(request.result as string || null);
             };
             request.onerror = () => resolve(null);
         });
@@ -83,7 +84,7 @@ async function saveIdToIndexedDB(userId: string): Promise<void> {
         return new Promise((resolve) => {
             const transaction = db.transaction(['user'], 'readwrite');
             const store = transaction.objectStore('user');
-            store.put({ id: 'primary', value: userId });
+            store.put(userId, 'user_id');
             transaction.oncomplete = () => resolve();
             transaction.onerror = () => resolve();
         });
