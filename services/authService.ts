@@ -51,7 +51,7 @@ export const authService = {
 
             return {
                 success: response.ok,
-                message: data.message || (response.ok ? 'Registration successful' : 'Registration failed'),
+                message: data.message || data.detail || (response.ok ? 'Registration successful' : 'Registration failed'),
                 errorType: response.ok ? undefined : 'SERVER_ERROR'
             };
         } catch (error) {

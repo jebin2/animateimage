@@ -6,9 +6,10 @@ interface CreditRegistrationModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSuccess: () => void;
+    onForgotKey: (email: string) => void;
 }
 
-const CreditRegistrationModal: React.FC<CreditRegistrationModalProps> = ({ isOpen, onClose, onSuccess }) => {
+const CreditRegistrationModal: React.FC<CreditRegistrationModalProps> = ({ isOpen, onClose, onSuccess, onForgotKey }) => {
     const [email, setEmail] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<AuthResponse | null>(null);
@@ -66,6 +67,14 @@ const CreditRegistrationModal: React.FC<CreditRegistrationModalProps> = ({ isOpe
                         </div>
                         {error.errorType === 'RATE_LIMIT' && (
                             <p className="text-xs text-red-300 pl-7">Please wait before trying again.</p>
+                        )}
+                        {error.message === 'Email already registered' && (
+                            <button
+                                onClick={() => onForgotKey(email)}
+                                className="text-xs text-indigo-300 hover:text-indigo-200 underline pl-7 text-left"
+                            >
+                                Forgot your secret key? Reset it here.
+                            </button>
                         )}
                     </div>
                 )}

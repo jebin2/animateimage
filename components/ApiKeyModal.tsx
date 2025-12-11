@@ -285,6 +285,11 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onClose, onSubmit, er
           if (!isRegistered) setUseCredit(false);
         }}
         onSuccess={handleRegistrationSuccess}
+        onForgotKey={(email) => {
+          setShowRegistration(false);
+          setResetEmail(email);
+          setShowReset(true);
+        }}
       />
     </>
   );
