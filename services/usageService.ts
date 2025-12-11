@@ -190,9 +190,26 @@ export async function recordUsage(type: 'generate_click' | 'generate_success', m
 
         if (!db) db = await openDatabase();
 
-        const transaction = db.transaction(['events'], 'readwrite');
-        const store = transaction.objectStore('events');
-        store.add({ data: encryptedData, timestamp: Date.now() });
+        return new Promise((resolve, reject) => {
+            const transaction = db!.transaction(['events'], 'readwrite');
+            const store = transaction.objectStore('events');
+            const request = store.add({ data: encryptedData, timestamp: Date.now() });
+
+            request.onsuccess = () => {
+                console.log('Usage event recorded successfully');
+                resolve();
+            };
+
+            request.onerror = () => {
+                console.error('Failed to add usage event:', request.error);
+                reject(request.error);
+            };
+
+            transaction.onerror = () => {
+                console.error('Transaction error:', transaction.error);
+                reject(transaction.error);
+            };
+        });
 
     } catch (error) {
         console.error('Usage error:', error);
