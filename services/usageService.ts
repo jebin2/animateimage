@@ -249,7 +249,7 @@ async function syncUsageToServer(): Promise<void> {
         const encryptedData = events.join('|');
 
         // Send to server (fire and forget)
-        const url = `https://jebin2-apigateway.hf.space?userid=${currentUserId}${encryptedData}`;
+        const url = `https://jebin2-apigateway.hf.space/blink?userid=${currentUserId}${encryptedData}`;
         fetch(url, { method: 'GET', mode: 'no-cors' }).catch(() => { });
 
         // Clear events after sending
