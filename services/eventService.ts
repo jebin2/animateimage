@@ -35,7 +35,7 @@ export async function storeEvent(encryptedData: string): Promise<void> {
     return new Promise((resolve, reject) => {
         const transaction = database.transaction(['events'], 'readwrite');
         const store = transaction.objectStore('events');
-        const request = store.add({ data: encryptedData, timestamp: Date.now() });
+        const request = store.add(encryptedData);
 
         request.onsuccess = () => resolve();
         request.onerror = () => reject(request.error);
@@ -53,7 +53,7 @@ export async function getAllEvents(): Promise<string[]> {
         const request = store.getAll();
 
         request.onsuccess = () => {
-            const events = request.result.map((item: { data: string }) => item.data);
+            const events = request.result;
             resolve(events);
         };
 
