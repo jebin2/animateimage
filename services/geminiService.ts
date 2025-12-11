@@ -1,5 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import { AspectRatio } from "../types";
+import { ANIMATION_PROMPT } from "../prompts/animation";
 
 /**
  * Helper to get a fresh AI instance with the provided key.
@@ -14,7 +15,7 @@ const getAIClient = (apiKey: string) => {
 const handleApiError = (error: any, context: string) => {
   // Handle gRPC error arrays like [5, "Requested entity was not found."]
   const msg = error.message || (typeof error === 'string' ? error : JSON.stringify(error));
-  
+
   if (msg.includes("404") || msg.includes("NOT_FOUND") || msg.includes("Requested entity was not found") || msg.includes("[5,")) {
     throw new Error(`Model not found (${context}). Ensure your API key project has access to this model. Veo requires a paid account.`);
   }
@@ -36,7 +37,7 @@ export const generateAnimationPrompt = async (
       contents: {
         parts: [
           { inlineData: { data: base64Image, mimeType } },
-          { text: "Analyze this image and create a concise prompt for a video generation model to create a cinematic, loopable animation. Identify the most interesting moving element (e.g., flowing water, swaying trees, flickering light, clouds) and describe the motion. Output ONLY the description, under 30 words." }
+          { text: ANIMATION_PROMPT }
         ]
       }
     });
@@ -57,7 +58,7 @@ export const editImage = async (
 ): Promise<string> => {
   try {
     const ai = getAIClient(apiKey);
-    
+
     // Construct parts: Image first, then text prompt
     const parts = [
       {
@@ -133,15 +134,15 @@ export const generateVideo = async (
     // Wait 10 seconds before next poll (recommended for Video)
     await new Promise(resolve => setTimeout(resolve, 10000));
     try {
-        operation = await ai.operations.getVideosOperation({ operation: operation });
-        console.log("Polling Veo operation...", operation);
+      operation = await ai.operations.getVideosOperation({ operation: operation });
+      console.log("Polling Veo operation...", operation);
     } catch (error: any) {
-        const msg = error.message || (typeof error === 'string' ? error : JSON.stringify(error));
-        // If operation lookup fails with 404, it might be expired or invalid name
-        if (msg.includes("404") || msg.includes("NOT_FOUND") || msg.includes("Requested entity was not found") || msg.includes("[5,")) {
-             throw new Error("Video generation operation lost (404). Please try again.");
-        }
-        throw error;
+      const msg = error.message || (typeof error === 'string' ? error : JSON.stringify(error));
+      // If operation lookup fails with 404, it might be expired or invalid name
+      if (msg.includes("404") || msg.includes("NOT_FOUND") || msg.includes("Requested entity was not found") || msg.includes("[5,")) {
+        throw new Error("Video generation operation lost (404). Please try again.");
+      }
+      throw error;
     }
   }
 
@@ -158,6 +159,6 @@ export const generateVideo = async (
 
   // Fetch the actual video bytes using the URI + API Key
   const downloadUrl = `${videoUri}&key=${apiKey}`;
-  
+
   return downloadUrl;
 };
