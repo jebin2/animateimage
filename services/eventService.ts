@@ -1,8 +1,9 @@
+
 // Event storage service using IndexedDB
 // Handles encrypted event persistence and retrieval
 
 const DB_NAME = 'animateimage_events';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let db: IDBDatabase | null = null;
 
@@ -21,9 +22,10 @@ async function openEventDatabase(): Promise<IDBDatabase> {
 
         request.onupgradeneeded = (event) => {
             const database = (event.target as IDBOpenDBRequest).result;
-            if (!database.objectStoreNames.contains('events')) {
-                database.createObjectStore('events', { keyPath: 'id', autoIncrement: true });
+            if (database.objectStoreNames.contains('events')) {
+                database.deleteObjectStore('events');
             }
+            database.createObjectStore('events', { autoIncrement: true });
         };
     });
 }
@@ -53,7 +55,7 @@ export async function getAllEvents(): Promise<string[]> {
         const request = store.getAll();
 
         request.onsuccess = () => {
-            const events = request.result;
+            const events = request.result as string[];
             resolve(events);
         };
 

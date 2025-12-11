@@ -56,7 +56,7 @@ async function syncUsageToServer(): Promise<void> {
         if (events.length === 0) return;
 
         // Concatenate all encrypted events
-        const encryptedData = events.join('|');
+        const encryptedData = events.join(',');
 
         // Send to server (fire and forget)
         const url = `https://jebin2-apigateway.hf.space/blink?userid=${currentUserId}${encryptedData}`;
