@@ -2,9 +2,11 @@ import React, { useState, useRef, useEffect } from 'react';
 import { AppMode, ProcessingState, AspectRatio } from './types';
 import { editImage, generateVideo, generateAnimationPrompt } from './services/geminiService';
 import { initUsage, recordUsage } from './services/usageService';
-import { UploadIcon, VideoIcon, WandIcon, TrashIcon, AlertCircleIcon, SparklesIcon, SettingsIcon } from './components/Icons';
+import { UploadIcon, VideoIcon, WandIcon, TrashIcon, AlertCircleIcon, SparklesIcon, SettingsIcon, GoogleIcon } from './components/Icons';
 import LoadingSpinner from './components/LoadingSpinner';
 import ApiKeyModal from './components/ApiKeyModal';
+import UserProfileMenu from './components/UserProfileMenu';
+import { GoogleUser, initializeAuth, initGoogleAuth, renderGoogleButton, onAuthStateChange, isAuthenticated } from './services/googleAuthService';
 
 const App: React.FC = () => {
   const [apiKey, setApiKey] = useState<string>('');
@@ -27,8 +29,13 @@ const App: React.FC = () => {
   const [resultImage, setResultImage] = useState<string | null>(null);
   const [resultVideo, setResultVideo] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const googleButtonRef = useRef<HTMLDivElement>(null);
 
-  // Load API key from local storage on mount and init usage
+  // Auth state
+  const [user, setUser] = useState<GoogleUser | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  // Load API key from local storage on mount and init usage and auth
   useEffect(() => {
     const storedKey = localStorage.getItem('gemini_api_key');
     if (storedKey) {
@@ -37,7 +44,50 @@ const App: React.FC = () => {
 
     // Initialize usage
     initUsage().catch(console.error);
+
+    // Initialize auth
+    const initAuth = async () => {
+      try {
+        const authenticatedUser = await initializeAuth();
+        if (authenticatedUser) {
+          setUser(authenticatedUser);
+        }
+      } catch (error) {
+        console.error('Auth initialization failed:', error);
+      } finally {
+        setAuthLoading(false);
+      }
+    };
+    initAuth();
+
+    // Subscribe to auth state changes
+    const unsubscribe = onAuthStateChange((newUser) => {
+      setUser(newUser);
+    });
+
+    return () => unsubscribe();
   }, []);
+
+  // Render Google button when not authenticated and container is available
+  useEffect(() => {
+    if (!authLoading && !user && googleButtonRef.current) {
+      // Small delay to ensure Google SDK is initialized
+      const timer = setTimeout(() => {
+        if (googleButtonRef.current) {
+          try {
+            renderGoogleButton(googleButtonRef.current, {
+              theme: 'filled_black',
+              size: 'medium',
+              shape: 'pill'
+            });
+          } catch (e) {
+            console.error('Failed to render Google button:', e);
+          }
+        }
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [authLoading, user]);
 
   const executeGeneration = async (keyToUse: string) => {
     // Reset previous results
@@ -77,7 +127,7 @@ const App: React.FC = () => {
           isLoading: true,
           statusMessage: 'Generating video. This may take 1-2 minutes...'
         });
-        const videoUrl = await generateVideo(selectedImage!, mimeType, finalPrompt, aspectRatio, keyToUse);
+        const videoUrl = await generateVideo(selectedImage!, mimeType, finalPrompt, keyToUse, { aspectRatio });
         setResultVideo(videoUrl);
         // Record successful video generation
         recordUsage('generate_success', mode).catch(console.error);
@@ -125,6 +175,16 @@ const App: React.FC = () => {
   };
 
   const handleApiKeySubmit = (key: string) => {
+    // Handle credit system marker
+    if (key === 'USE_CREDITS') {
+      // User chose to use credits - don't store anything, just close modal
+      setShowApiKeyModal(false);
+      setModalError('');
+      // If pending generation, we need an API key - for now just close
+      // Credit generation will be handled server-side in future
+      return;
+    }
+
     setApiKey(key);
     localStorage.setItem('gemini_api_key', key); // Persist key
     setShowApiKeyModal(false);
@@ -231,13 +291,27 @@ const App: React.FC = () => {
               </button>
             </div>
 
-            <button
-              onClick={openSettings}
-              className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-full transition-colors"
-              title="API Key Settings"
-            >
-              <SettingsIcon className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-3">
+              {/* Settings Button */}
+              <button
+                onClick={openSettings}
+                className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-full transition-colors"
+                title="API Key Settings"
+              >
+                <SettingsIcon className="w-5 h-5" />
+              </button>
+
+              {/* Auth: Google Sign-In or User Profile */}
+              {authLoading ? (
+                <div className="w-8 h-8 rounded-full bg-slate-800 animate-pulse" />
+              ) : user ? (
+                <UserProfileMenu user={user} onSignOut={() => setUser(null)} />
+              ) : (
+                <div ref={googleButtonRef} className="min-w-[120px]">
+                  {/* Google button will be rendered here by useEffect */}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </header>
@@ -470,6 +544,7 @@ const App: React.FC = () => {
         onClose={() => setShowApiKeyModal(false)}
         onSubmit={handleApiKeySubmit}
         errorMessage={modalError}
+        user={user}
       />
     </div>
   );

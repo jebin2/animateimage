@@ -3,6 +3,13 @@ import { configureUserIdService } from './userIdService';
 import { configureEventService } from './eventService';
 import { configureUsageService } from './usageService';
 import { configureGeminiService } from './geminiService';
+import { configureGoogleAuth } from './googleAuthService';
+
+// API Base URL - using local dev server
+const API_BASE_URL = 'http://localhost:8000';
+
+// Google Client ID
+const GOOGLE_CLIENT_ID = '212074481946-sadifngeab8njbmvf1u8a6ilnvcugm7b.apps.googleusercontent.com';
 
 export function initServices() {
     // Configure User ID Service
@@ -13,7 +20,7 @@ export function initServices() {
 
     // Configure Auth Service
     configureAuthService({
-        baseUrl: 'https://jebin2-apigateway.hf.space'
+        baseUrl: API_BASE_URL
     });
 
     // Configure Event Service
@@ -23,11 +30,18 @@ export function initServices() {
 
     // Configure Usage Service
     configureUsageService({
-        syncUrl: 'https://jebin2-apigateway.hf.space/blink'
+        syncUrl: `${API_BASE_URL}/blink`
     });
 
     // Configure Gemini Service
     configureGeminiService({
         defaultAnimationPrompt: `Analyze this image and create a concise prompt for a video generation model to create a cinematic, loopable animation. Identify the most interesting moving element (e.g., flowing water, swaying trees, flickering light, clouds) and describe the motion. Output ONLY the description, under 30 words.`
     });
+
+    // Configure Google Auth Service
+    configureGoogleAuth({
+        clientId: GOOGLE_CLIENT_ID,
+        apiBaseUrl: API_BASE_URL
+    });
 }
+
