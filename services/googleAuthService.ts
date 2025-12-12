@@ -81,17 +81,24 @@ interface UserInfoResponse {
 // Configuration
 let CONFIG = {
     clientId: '',
-    apiBaseUrl: 'https://jebin2-apigateway.hf.space'
+    apiBaseUrl: '',
+    storagePrefix: 'auth' // Prefix for all storage keys
 };
 
-const STORAGE_KEYS = {
-    accessToken: 'auth_access_token',
-    user: 'auth_user',
-    tokenExpiry: 'auth_token_expiry'
-};
+// Dynamic storage keys based on prefix
+function getStorageKeys() {
+    return {
+        accessToken: `${CONFIG.storagePrefix}_access_token`,
+        user: `${CONFIG.storagePrefix}_user`,
+        tokenExpiry: `${CONFIG.storagePrefix}_token_expiry`,
+        avatarCache: `${CONFIG.storagePrefix}_avatar_cache`
+    };
+}
 
-// IndexedDB configuration
-const DB_NAME = 'animateimage_auth';
+// IndexedDB configuration (uses storage prefix)
+function getDbName() {
+    return `${CONFIG.storagePrefix}_db`;
+}
 const DB_VERSION = 1;
 const STORE_NAME = 'auth';
 
@@ -131,7 +138,7 @@ function deleteCookie(key: string): void {
 
 function openAuthDatabase(): Promise<IDBDatabase> {
     return new Promise((resolve, reject) => {
-        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        const request = indexedDB.open(getDbName(), DB_VERSION);
 
         request.onerror = () => reject(request.error);
         request.onsuccess = () => resolve(request.result);
@@ -233,9 +240,9 @@ async function clearFromAllStorages(key: string): Promise<void> {
 }
 
 async function clearAllAuthStorage(): Promise<void> {
-    await clearFromAllStorages(STORAGE_KEYS.accessToken);
-    await clearFromAllStorages(STORAGE_KEYS.user);
-    await clearFromAllStorages(STORAGE_KEYS.tokenExpiry);
+    await clearFromAllStorages(getStorageKeys().accessToken);
+    await clearFromAllStorages(getStorageKeys().user);
+    await clearFromAllStorages(getStorageKeys().tokenExpiry);
 }
 
 // Event callbacks
@@ -244,12 +251,27 @@ let authStateCallbacks: AuthCallback[] = [];
 
 /**
  * Configure the Google Auth service
+ * @param config.clientId - Google OAuth Client ID
+ * @param config.apiBaseUrl - Backend API base URL
+ * @param config.storagePrefix - Prefix for all storage keys (default: 'auth')
  */
-export function configureGoogleAuth(config: { clientId: string; apiBaseUrl?: string }) {
+export function configureGoogleAuth(config: {
+    clientId: string;
+    apiBaseUrl: string;
+    storagePrefix?: string;
+}) {
     CONFIG.clientId = config.clientId;
-    if (config.apiBaseUrl) {
-        CONFIG.apiBaseUrl = config.apiBaseUrl;
+    CONFIG.apiBaseUrl = config.apiBaseUrl;
+    if (config.storagePrefix) {
+        CONFIG.storagePrefix = config.storagePrefix;
     }
+}
+
+/**
+ * Get the avatar cache key (for UserAvatar component)
+ */
+export function getAvatarCacheKey(): string {
+    return getStorageKeys().avatarCache;
 }
 
 /**
@@ -323,9 +345,9 @@ async function handleGoogleCredentialResponse(response: GoogleCredentialResponse
             const expiryTime = Date.now() + 24 * 60 * 60 * 1000;
 
             // Store auth data to all storage layers
-            await saveToAllStorages(STORAGE_KEYS.accessToken, authResponse.access_token);
-            await saveToAllStorages(STORAGE_KEYS.user, JSON.stringify(user));
-            await saveToAllStorages(STORAGE_KEYS.tokenExpiry, expiryTime.toString());
+            await saveToAllStorages(getStorageKeys().accessToken, authResponse.access_token);
+            await saveToAllStorages(getStorageKeys().user, JSON.stringify(user));
+            await saveToAllStorages(getStorageKeys().tokenExpiry, expiryTime.toString());
 
             notifyAuthStateChange(user);
         }
@@ -438,21 +460,21 @@ export async function signOut(): Promise<void> {
  * Get stored access token (sync - from localStorage only)
  */
 function getAccessTokenSync(): string | null {
-    return localStorage.getItem(STORAGE_KEYS.accessToken);
+    return localStorage.getItem(getStorageKeys().accessToken);
 }
 
 /**
  * Get stored access token (with failsafe fallback)
  */
 export async function getAccessToken(): Promise<string | null> {
-    return await getFromStorages(STORAGE_KEYS.accessToken);
+    return await getFromStorages(getStorageKeys().accessToken);
 }
 
 /**
  * Get current user from storage (sync - from localStorage only)
  */
 function getCurrentUserSync(): GoogleUser | null {
-    const userStr = localStorage.getItem(STORAGE_KEYS.user);
+    const userStr = localStorage.getItem(getStorageKeys().user);
     if (!userStr) return null;
 
     try {
@@ -466,7 +488,7 @@ function getCurrentUserSync(): GoogleUser | null {
  * Get current user from storage (with failsafe fallback)
  */
 export async function getCurrentUser(): Promise<GoogleUser | null> {
-    const userStr = await getFromStorages(STORAGE_KEYS.user);
+    const userStr = await getFromStorages(getStorageKeys().user);
     if (!userStr) return null;
 
     try {
@@ -489,7 +511,7 @@ export function isAuthenticated(): boolean {
  * Check if token needs refresh
  */
 async function shouldRefreshToken(): Promise<boolean> {
-    const expiryStr = await getFromStorages(STORAGE_KEYS.tokenExpiry);
+    const expiryStr = await getFromStorages(getStorageKeys().tokenExpiry);
     if (!expiryStr) return false;
 
     const expiry = parseInt(expiryStr, 10);
@@ -522,8 +544,8 @@ export async function refreshToken(): Promise<boolean> {
 
         const data = await response.json();
         if (data.success && data.access_token) {
-            await saveToAllStorages(STORAGE_KEYS.accessToken, data.access_token);
-            await saveToAllStorages(STORAGE_KEYS.tokenExpiry, (Date.now() + 24 * 60 * 60 * 1000).toString());
+            await saveToAllStorages(getStorageKeys().accessToken, data.access_token);
+            await saveToAllStorages(getStorageKeys().tokenExpiry, (Date.now() + 24 * 60 * 60 * 1000).toString());
             return true;
         }
 
@@ -567,7 +589,7 @@ export async function fetchUserInfo(): Promise<GoogleUser | null> {
         };
 
         // Update stored user across all storages
-        await saveToAllStorages(STORAGE_KEYS.user, JSON.stringify(user));
+        await saveToAllStorages(getStorageKeys().user, JSON.stringify(user));
         notifyAuthStateChange(user);
 
         return user;

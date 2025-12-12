@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getAvatarCacheKey } from '../services/googleAuthService';
 
 interface UserAvatarProps {
     src?: string | null;
@@ -8,11 +9,8 @@ interface UserAvatarProps {
     className?: string;
 }
 
-// Storage key for cached avatar
-const AVATAR_CACHE_KEY = 'auth_avatar_cache';
-
 // Cache avatar as data URL in localStorage
-async function cacheAvatar(url: string): Promise<string | null> {
+async function cacheAvatar(url: string, cacheKey: string): Promise<string | null> {
     try {
         const response = await fetch(url);
         if (!response.ok) return null;
@@ -23,7 +21,7 @@ async function cacheAvatar(url: string): Promise<string | null> {
             reader.onloadend = () => {
                 const dataUrl = reader.result as string;
                 try {
-                    localStorage.setItem(AVATAR_CACHE_KEY, dataUrl);
+                    localStorage.setItem(cacheKey, dataUrl);
                 } catch {
                     // localStorage full, ignore
                 }
@@ -38,18 +36,18 @@ async function cacheAvatar(url: string): Promise<string | null> {
 }
 
 // Get cached avatar from localStorage
-function getCachedAvatar(): string | null {
+function getCachedAvatar(cacheKey: string): string | null {
     try {
-        return localStorage.getItem(AVATAR_CACHE_KEY);
+        return localStorage.getItem(cacheKey);
     } catch {
         return null;
     }
 }
 
-// Clear cached avatar
+// Clear cached avatar (uses dynamic key from service)
 export function clearCachedAvatar(): void {
     try {
-        localStorage.removeItem(AVATAR_CACHE_KEY);
+        localStorage.removeItem(getAvatarCacheKey());
     } catch {
         // ignore
     }
@@ -97,15 +95,15 @@ const UserAvatar: React.FC<UserAvatarProps> = ({
     // Try to cache avatar on first load or use cached version on error
     useEffect(() => {
         if (src && !imageError) {
-            // Try to cache the avatar
-            cacheAvatar(src).catch(() => { });
+            const cacheKey = getAvatarCacheKey();
+            cacheAvatar(src, cacheKey).catch(() => { });
         }
     }, [src, imageError]);
 
     // Handle image load error
     const handleError = () => {
-        // Try to use cached version
-        const cached = getCachedAvatar();
+        const cacheKey = getAvatarCacheKey();
+        const cached = getCachedAvatar(cacheKey);
         if (cached && cached !== imageSrc) {
             setImageSrc(cached);
         } else {

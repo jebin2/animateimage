@@ -41,7 +41,8 @@ export function initServices() {
     // Configure Google Auth Service
     configureGoogleAuth({
         clientId: GOOGLE_CLIENT_ID,
-        apiBaseUrl: API_BASE_URL
+        apiBaseUrl: API_BASE_URL,
+        storagePrefix: 'animateimage_auth'
     });
 }
 
