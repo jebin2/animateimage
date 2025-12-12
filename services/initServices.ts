@@ -4,6 +4,7 @@ import { configureEventService } from './eventService';
 import { configureUsageService } from './usageService';
 import { configureGeminiService } from './geminiService';
 import { configureGoogleAuth } from './googleAuthService';
+import { configureCreditsService } from './creditsService';
 
 // API Base URL - using local dev server
 const API_BASE_URL = 'http://localhost:8000';
@@ -44,6 +45,11 @@ export function initServices() {
         clientId: GOOGLE_CLIENT_ID,
         apiBaseUrl: API_BASE_URL,
         storagePrefix: 'animateimage_auth'
+    });
+
+    // Configure Credits Service
+    configureCreditsService({
+        apiBaseUrl: API_BASE_URL
     });
 }
 

@@ -107,6 +107,7 @@ const App: React.FC = () => {
         setResultImage(editedImageBase64);
         recordUsage('generate_success', mode).catch(console.error);
         setProcessing({ isLoading: false, statusMessage: 'Done!' });
+        // Credits are updated automatically from API response in geminiService
       } else {
         // Animation Logic
         let finalPrompt = prompt;
@@ -133,6 +134,7 @@ const App: React.FC = () => {
         setResultVideo(videoUrl);
         recordUsage('generate_success', mode).catch(console.error);
         setProcessing({ isLoading: false, statusMessage: 'Done!' });
+        // Credits are updated automatically from API response in geminiService
       }
     } catch (error: any) {
       console.error(error);

@@ -293,6 +293,25 @@ function notifyAuthStateChange(user: GoogleUser | null) {
 }
 
 /**
+ * Update user credits from API response (avoids extra API call)
+ * Call this when you receive credits_remaining from job APIs
+ */
+export async function updateUserCredits(newCredits: number): Promise<void> {
+    const user = getCurrentUserSync();
+    if (!user) return;
+
+    // Update the credit value
+    const updatedUser: GoogleUser = {
+        ...user,
+        credits: newCredits
+    };
+
+    // Save to all storage layers and notify subscribers
+    await saveToAllStorages(getStorageKeys().user, JSON.stringify(updatedUser));
+    notifyAuthStateChange(updatedUser);
+}
+
+/**
  * Initialize Google Sign-In library
  */
 export function initGoogleAuth(): Promise<void> {

@@ -4,7 +4,7 @@
 // STRICT RULE: API key NEVER sent to server
 
 import { GoogleGenAI } from "@google/genai";
-import { getAccessToken } from "./googleAuthService";
+import { getAccessToken, updateUserCredits } from "./googleAuthService";
 
 // ==================== Types ====================
 
@@ -29,6 +29,7 @@ interface JobResponse {
   job_id: string;
   status: string;
   position?: number;
+  credits_remaining?: number;
 }
 
 interface JobStatus {
@@ -42,6 +43,7 @@ interface JobStatus {
   };
   download_url?: string;
   error?: string;
+  credits_remaining?: number;
 }
 
 // ==================== Configuration ====================
@@ -108,7 +110,14 @@ async function serverFetch(endpoint: string, body: object): Promise<any> {
     throw new Error(error.detail || `Server error: ${response.status}`);
   }
 
-  return response.json();
+  const data = await response.json();
+
+  // Update credits from response if available (after job creation, credits are reserved)
+  if (data.credits_remaining !== undefined) {
+    updateUserCredits(data.credits_remaining).catch(console.error);
+  }
+
+  return data;
 }
 
 async function pollJobStatus(
@@ -131,6 +140,11 @@ async function pollJobStatus(
     }
 
     const status: JobStatus = await response.json();
+
+    // Update credits from response if available
+    if (status.credits_remaining !== undefined) {
+      updateUserCredits(status.credits_remaining).catch(console.error);
+    }
 
     if (status.status === 'queued') {
       onStatus?.(`Queued (position: ${status.position || '?'})...`);
