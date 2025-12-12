@@ -111,8 +111,9 @@ const App: React.FC = () => {
         // Animation Logic
         let finalPrompt = prompt;
 
-        // If prompt is empty, generate it using Gemini Vision
-        if (!finalPrompt.trim()) {
+        // If prompt is empty, generate it using Gemini Vision (only for Client Mode)
+        // For Credit Mode, we send empty prompt and let server generate it
+        if (!finalPrompt.trim() && !options.useCredits) {
           try {
             finalPrompt = await generateAnimationPrompt(selectedImage!, mimeType, { ...options, onStatus });
             setPrompt(finalPrompt);
