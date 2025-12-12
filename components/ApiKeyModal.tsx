@@ -39,10 +39,10 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onClose, onSubmit, er
           googleButtonContainerRef.current.innerHTML = '';
           try {
             renderGoogleButton(googleButtonContainerRef.current, {
-              theme: 'filled_blue',
+              theme: 'filled_black',
               size: 'large',
               text: 'signin_with',
-              shape: 'rectangular',
+              shape: 'pill',
               width: 280
             });
           } catch (e) {
