@@ -33,8 +33,9 @@ export function initServices() {
         syncUrl: `${API_BASE_URL}/blink`
     });
 
-    // Configure Gemini Service
+    // Configure Gemini Service (dual-mode: client API key or server credits)
     configureGeminiService({
+        apiBaseUrl: API_BASE_URL,
         defaultAnimationPrompt: `Analyze this image and create a concise prompt for a video generation model to create a cinematic, loopable animation. Identify the most interesting moving element (e.g., flowing water, swaying trees, flickering light, clouds) and describe the motion. Output ONLY the description, under 30 words.`
     });
 

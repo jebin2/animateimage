@@ -20,10 +20,16 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onClose, onSubmit, er
   // Reset state when modal opens
   useEffect(() => {
     if (isOpen) {
-      setKey('');
+      // Load stored API key
+      const storedKey = localStorage.getItem('gemini_api_key');
+      setKey(storedKey || '');
       setValidationError(null);
-      // If user is signed in, auto-check the credit option
-      if (user) {
+
+      // If user has stored API key, use that (don't auto-check credits)
+      // Otherwise, if user is signed in, auto-check credits
+      if (storedKey) {
+        setUseCredit(false);
+      } else if (user) {
         setUseCredit(true);
       } else {
         setUseCredit(false);

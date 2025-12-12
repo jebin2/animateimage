@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { AppMode, ProcessingState, AspectRatio } from './types';
-import { editImage, generateVideo, generateAnimationPrompt } from './services/geminiService';
+import { editImage, generateVideo, generateAnimationPrompt, GeminiOptions } from './services/geminiService';
 import { initUsage, recordUsage } from './services/usageService';
 import { UploadIcon, VideoIcon, WandIcon, TrashIcon, AlertCircleIcon, SparklesIcon, SettingsIcon, GoogleIcon } from './components/Icons';
 import LoadingSpinner from './components/LoadingSpinner';
@@ -89,19 +89,22 @@ const App: React.FC = () => {
     }
   }, [authLoading, user]);
 
-  const executeGeneration = async (keyToUse: string) => {
+  const executeGeneration = async (options: GeminiOptions) => {
     // Reset previous results
     setResultImage(null);
     setResultVideo(null);
-    setProcessing({ isLoading: true, statusMessage: 'Initializing AI model...' });
+    setProcessing({ isLoading: true, statusMessage: 'Initializing...' });
     setModalError('');
+
+    // Status callback to update UI
+    const onStatus = (message: string) => {
+      setProcessing(prev => ({ ...prev, statusMessage: message }));
+    };
 
     try {
       if (mode === 'edit') {
-        setProcessing({ isLoading: true, statusMessage: 'Enhancing image with AI...' });
-        const editedImageBase64 = await editImage(selectedImage!, mimeType, prompt, keyToUse);
+        const editedImageBase64 = await editImage(selectedImage!, mimeType, prompt, { ...options, onStatus });
         setResultImage(editedImageBase64);
-        // Record successful image edit
         recordUsage('generate_success', mode).catch(console.error);
         setProcessing({ isLoading: false, statusMessage: 'Done!' });
       } else {
@@ -110,26 +113,23 @@ const App: React.FC = () => {
 
         // If prompt is empty, generate it using Gemini Vision
         if (!finalPrompt.trim()) {
-          setProcessing({ isLoading: true, statusMessage: 'Analyzing image for loopable animation...' });
           try {
-            finalPrompt = await generateAnimationPrompt(selectedImage!, mimeType, keyToUse);
-            setPrompt(finalPrompt); // Update UI so user sees the generated prompt
-            setIsAutoPrompt(true); // Flag as auto-generated
+            finalPrompt = await generateAnimationPrompt(selectedImage!, mimeType, { ...options, onStatus });
+            setPrompt(finalPrompt);
+            setIsAutoPrompt(true);
           } catch (err) {
             console.warn("Failed to generate prompt", err);
-            // Don't fail completely on prompt generation error, just fallback
             finalPrompt = "Animate this image with cinematic movement";
             setPrompt(finalPrompt);
           }
         }
 
-        setProcessing({
-          isLoading: true,
-          statusMessage: 'Generating video. This may take 1-2 minutes...'
+        const videoUrl = await generateVideo(selectedImage!, mimeType, finalPrompt, {
+          ...options,
+          aspectRatio,
+          onStatus
         });
-        const videoUrl = await generateVideo(selectedImage!, mimeType, finalPrompt, keyToUse, { aspectRatio });
         setResultVideo(videoUrl);
-        // Record successful video generation
         recordUsage('generate_success', mode).catch(console.error);
         setProcessing({ isLoading: false, statusMessage: 'Done!' });
       }
@@ -177,11 +177,15 @@ const App: React.FC = () => {
   const handleApiKeySubmit = (key: string) => {
     // Handle credit system marker
     if (key === 'USE_CREDITS') {
-      // User chose to use credits - don't store anything, just close modal
+      // User chose to use credits
       setShowApiKeyModal(false);
       setModalError('');
-      // If pending generation, we need an API key - for now just close
-      // Credit generation will be handled server-side in future
+
+      // Auto-generate if pending and user is signed in
+      if (pendingAutoGenerate && selectedImage && user) {
+        setPendingAutoGenerate(false);
+        executeGeneration({ useCredits: true });
+      }
       return;
     }
 
@@ -193,7 +197,7 @@ const App: React.FC = () => {
     // Auto-generate if it was pending
     if (pendingAutoGenerate && selectedImage) {
       setPendingAutoGenerate(false);
-      executeGeneration(key);
+      executeGeneration({ apiKey: key });
     }
   };
 
@@ -230,13 +234,18 @@ const App: React.FC = () => {
     // Record generate click
     recordUsage('generate_click', mode).catch(console.error);
 
-    if (!apiKey) {
+    // Priority: API key > Credits > Show modal
+    if (apiKey) {
+      // Use API key (client-side mode)
+      executeGeneration({ apiKey });
+    } else if (user) {
+      // Use credits (server-side mode)
+      executeGeneration({ useCredits: true });
+    } else {
+      // No auth - show modal
       setPendingAutoGenerate(true);
       setShowApiKeyModal(true);
-      return;
     }
-
-    executeGeneration(apiKey);
   };
 
   const clearAll = () => {
