@@ -526,7 +526,7 @@ const App: React.FC = () => {
                     <div className="p-4 bg-slate-900 border-t border-slate-800 flex justify-between items-center">
                       <div className="flex flex-col">
                         <span className="text-sm text-slate-300 font-medium">Video Generation Result</span>
-                        <span className="text-xs text-slate-500">Loop enabled</span>
+                        {/* <span className="text-xs text-slate-500">Loop enabled</span> */}
                       </div>
                       <a
                         href={resultVideo}
