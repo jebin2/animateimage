@@ -20,16 +20,22 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onClose, onSubmit, er
   // Reset state when modal opens
   useEffect(() => {
     if (isOpen) {
-      // Load stored API key
+      // Load stored preferences
       const storedKey = localStorage.getItem('gemini_api_key');
+      const storedUseCredits = localStorage.getItem('use_credits_preference');
+
       setKey(storedKey || '');
       setValidationError(null);
 
-      // If user has stored API key, use that (don't auto-check credits)
-      // Otherwise, if user is signed in, auto-check credits
-      if (storedKey) {
+      // Priority: stored preference > has API key > signed in user > default off
+      if (storedUseCredits !== null) {
+        // User has a saved preference
+        setUseCredit(storedUseCredits === 'true');
+      } else if (storedKey) {
+        // Has API key, default to using it
         setUseCredit(false);
       } else if (user) {
+        // No key but signed in, default to credits
         setUseCredit(true);
       } else {
         setUseCredit(false);
@@ -64,6 +70,8 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onClose, onSubmit, er
   const handleUseCreditChange = (checked: boolean) => {
     setUseCredit(checked);
     setValidationError(null);
+    // Persist preference
+    localStorage.setItem('use_credits_preference', checked.toString());
   };
 
   const handleSubmit = () => {
