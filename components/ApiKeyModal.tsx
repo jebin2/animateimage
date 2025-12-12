@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { SparklesIcon, AlertCircleIcon, CreditCardIcon } from './Icons';
 import { GoogleUser, renderGoogleButton } from '../services/googleAuthService';
+import UserAvatar from './UserAvatar';
 
 interface ApiKeyModalProps {
   isOpen: boolean;
@@ -136,13 +137,12 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onClose, onSubmit, er
             // User is signed in - show confirmation
             <div className="mb-6 p-4 bg-slate-950/50 rounded-xl border border-slate-800">
               <div className="flex items-center gap-3">
-                {user.profilePicture ? (
-                  <img src={user.profilePicture} alt={user.name || user.email} className="w-10 h-10 rounded-full" />
-                ) : (
-                  <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-medium">
-                    {(user.name || user.email)[0].toUpperCase()}
-                  </div>
-                )}
+                <UserAvatar
+                  src={user.profilePicture}
+                  name={user.name}
+                  email={user.email}
+                  size="md"
+                />
                 <div className="flex-1 min-w-0">
                   <p className="text-white font-medium truncate">{user.name || 'User'}</p>
                   <p className="text-sm text-slate-400 truncate">{user.email}</p>

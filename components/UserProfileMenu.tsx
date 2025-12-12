@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { GoogleUser, signOut } from '../services/googleAuthService';
-import { LogOutIcon, UserIcon, CreditCardIcon, ChevronDownIcon } from './Icons';
+import { LogOutIcon, CreditCardIcon, ChevronDownIcon } from './Icons';
+import UserAvatar, { clearCachedAvatar } from './UserAvatar';
 
 interface UserProfileMenuProps {
     user: GoogleUser;
@@ -25,31 +26,9 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ user, onSignOut }) =>
 
     const handleSignOut = async () => {
         setIsOpen(false);
+        clearCachedAvatar(); // Clear cached avatar on sign out
         await signOut();
         onSignOut();
-    };
-
-    // Get initials from name or email
-    const getInitials = () => {
-        if (user.name) {
-            return user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-        }
-        return user.email[0].toUpperCase();
-    };
-
-    // Generate a consistent color based on email
-    const getAvatarColor = () => {
-        const colors = [
-            'bg-indigo-600',
-            'bg-purple-600',
-            'bg-pink-600',
-            'bg-blue-600',
-            'bg-teal-600',
-            'bg-emerald-600',
-            'bg-orange-600'
-        ];
-        const index = user.email.charCodeAt(0) % colors.length;
-        return colors[index];
     };
 
     return (
@@ -59,17 +38,12 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ user, onSignOut }) =>
                 onClick={() => setIsOpen(!isOpen)}
                 className="flex items-center gap-2 p-1.5 rounded-full hover:bg-slate-800 transition-colors"
             >
-                {user.profilePicture ? (
-                    <img
-                        src={user.profilePicture}
-                        alt={user.name || user.email}
-                        className="w-8 h-8 rounded-full border-2 border-slate-700"
-                    />
-                ) : (
-                    <div className={`w-8 h-8 rounded-full ${getAvatarColor()} flex items-center justify-center text-white text-sm font-medium border-2 border-slate-700`}>
-                        {getInitials()}
-                    </div>
-                )}
+                <UserAvatar
+                    src={user.profilePicture}
+                    name={user.name}
+                    email={user.email}
+                    size="sm"
+                />
                 <ChevronDownIcon className={`w-4 h-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
             </button>
 
@@ -79,17 +53,13 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ user, onSignOut }) =>
                     {/* User Info Header */}
                     <div className="p-4 bg-slate-800/50 border-b border-slate-700">
                         <div className="flex items-center gap-3">
-                            {user.profilePicture ? (
-                                <img
-                                    src={user.profilePicture}
-                                    alt={user.name || user.email}
-                                    className="w-12 h-12 rounded-full border-2 border-slate-600"
-                                />
-                            ) : (
-                                <div className={`w-12 h-12 rounded-full ${getAvatarColor()} flex items-center justify-center text-white text-lg font-medium border-2 border-slate-600`}>
-                                    {getInitials()}
-                                </div>
-                            )}
+                            <UserAvatar
+                                src={user.profilePicture}
+                                name={user.name}
+                                email={user.email}
+                                size="lg"
+                                className="border-slate-600"
+                            />
                             <div className="flex-1 min-w-0">
                                 <p className="font-medium text-white truncate">
                                     {user.name || 'User'}
