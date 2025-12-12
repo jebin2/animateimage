@@ -6,8 +6,10 @@ import { configureGeminiService } from './geminiService';
 import { configureGoogleAuth } from './googleAuthService';
 import { configureCreditsService } from './creditsService';
 
-// API Base URL - using local dev server
-const API_BASE_URL = 'http://localhost:8000';
+// API Base URL - production for builds, localhost for dev
+const API_BASE_URL = import.meta.env.DEV
+    ? 'http://localhost:8000'
+    : 'https://jebin2-apigateway.hf.space';
 
 // Google Client ID
 const GOOGLE_CLIENT_ID = '212074481946-sadifngeab8njbmvf1u8a6ilnvcugm7b.apps.googleusercontent.com';
