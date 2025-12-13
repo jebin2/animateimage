@@ -114,7 +114,7 @@ export async function deleteJob(jobId: string): Promise<{ success: boolean; erro
     }
 
     try {
-        const url = `${CONFIG.apiBaseUrl}/gemini/jobs/${jobId}`;
+        const url = `${CONFIG.apiBaseUrl}/gemini/job/${jobId}`;
         const response = await authenticatedFetch(url, {
             method: 'DELETE'
         });

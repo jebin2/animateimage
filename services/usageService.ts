@@ -96,7 +96,7 @@ export async function initUsage(): Promise<string> {
     const id = await getOrCreateUserId();
 
     // Sync existing data to server
-    syncUsageToServer();
+    // syncUsageToServer();
 
     return id;
 }

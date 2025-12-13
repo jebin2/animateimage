@@ -52,7 +52,7 @@ const ProcessHistoryModal: React.FC<ProcessHistoryModalProps> = ({ isOpen, onClo
     };
 
     const handleDelete = async (jobId: string) => {
-        if (!confirm('Are you sure you want to delete this job?')) return;
+        // if (!confirm('Are you sure you want to delete this job?')) return;
 
         const result = await deleteJob(jobId);
         if (result.success) {
