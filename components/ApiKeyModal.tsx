@@ -73,15 +73,15 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onClose, onSubmit, er
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-300">
-      <div className="bg-white border border-white/60 rounded-3xl p-6 w-full max-w-md shadow-2xl shadow-purple-100/50 scale-100 animate-in zoom-in-95 duration-300">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-2 sm:p-4 animate-in fade-in duration-300">
+      <div className="bg-white border border-white/60 rounded-2xl sm:rounded-3xl p-4 sm:p-6 w-full max-w-md shadow-2xl shadow-purple-100/50 scale-100 animate-in zoom-in-95 duration-300 max-h-[95vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-4 text-slate-800">
           <div className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-gradient-to-tr from-cute-pink to-cute-purple rounded-xl flex items-center justify-center shadow-md shadow-pink-100">
-              <SparklesIcon className="w-5 h-5 text-white" />
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-tr from-cute-pink to-cute-purple rounded-lg sm:rounded-xl flex items-center justify-center shadow-md shadow-pink-100">
+              <SparklesIcon className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
             </div>
-            <h2 className="text-xl font-bold font-display">Settings</h2>
+            <h2 className="text-lg sm:text-xl font-bold font-display">Settings</h2>
           </div>
           {user && useCredit && (
             <div className="bg-purple-50 text-purple-600 px-3 py-1 rounded-full text-xs font-bold border border-purple-100">

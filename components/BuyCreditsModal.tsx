@@ -75,7 +75,7 @@ const BuyCreditsModal: React.FC<BuyCreditsModalProps> = ({ isOpen, onClose, user
 
     // Use portal to render modal outside of parent stacking context
     return createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 overflow-y-auto">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
             {/* Backdrop */}
             <div
                 className="fixed inset-0 bg-black/60 backdrop-blur-sm"
@@ -83,17 +83,17 @@ const BuyCreditsModal: React.FC<BuyCreditsModalProps> = ({ isOpen, onClose, user
             />
 
             {/* Modal */}
-            <div className="relative bg-white border border-white/60 rounded-3xl shadow-2xl shadow-purple-100/50 max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-300">
+            <div className="relative bg-white border border-white/60 rounded-2xl sm:rounded-3xl shadow-2xl shadow-purple-100/50 max-w-lg w-full max-h-[95vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-300">
                 {/* Header - Fixed */}
-                <div className="flex-shrink-0 p-6 border-b border-purple-100 bg-gradient-to-r from-purple-50/50 to-pink-50/50 rounded-t-3xl">
+                <div className="flex-shrink-0 p-4 sm:p-6 border-b border-purple-100 bg-gradient-to-r from-purple-50/50 to-pink-50/50 rounded-t-2xl sm:rounded-t-3xl">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
-                                <SparklesIcon className="w-5 h-5 text-purple-400" />
+                            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white rounded-lg sm:rounded-xl flex items-center justify-center shadow-sm">
+                                <SparklesIcon className="w-4 h-4 sm:w-5 sm:h-5 text-purple-400" />
                             </div>
                             <div>
-                                <h2 className="text-xl font-bold font-display text-slate-800">Buy Credits</h2>
-                                <p className="text-sm text-slate-500 font-medium">Choose a credit package</p>
+                                <h2 className="text-lg sm:text-xl font-bold font-display text-slate-800">Buy Credits</h2>
+                                <p className="text-xs sm:text-sm text-slate-500 font-medium">Choose a credit package</p>
                             </div>
                         </div>
                         <button
@@ -108,7 +108,7 @@ const BuyCreditsModal: React.FC<BuyCreditsModalProps> = ({ isOpen, onClose, user
                 </div>
 
                 {/* Content - Scrollable */}
-                <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50">
+                <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50/50">
                     {/* Current Balance */}
                     <div className="flex items-center gap-3 p-4 mb-6 bg-white rounded-2xl border border-slate-100 shadow-sm">
                         <CreditCardIcon className="w-5 h-5 text-purple-400" />
@@ -203,7 +203,7 @@ const BuyCreditsModal: React.FC<BuyCreditsModalProps> = ({ isOpen, onClose, user
                 </div>
 
                 {/* Footer - Fixed */}
-                <div className="flex-shrink-0 px-6 py-4 border-t border-slate-100 bg-white rounded-b-3xl">
+                <div className="flex-shrink-0 px-4 sm:px-6 py-3 sm:py-4 border-t border-slate-100 bg-white rounded-b-2xl sm:rounded-b-3xl">
                     <p className="text-xs text-slate-400 text-center font-medium">
                         Secure payments powered by Razorpay. By purchasing, you agree to our terms of service.
                     </p>

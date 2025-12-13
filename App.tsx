@@ -257,55 +257,66 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-transparent text-slate-700 font-sans selection:bg-cute-pink selection:text-pink-900 relative">
       {/* Header */}
       <header className="border-b border-white/20 bg-white/60 backdrop-blur-md sticky top-0 z-50 shadow-sm">
-        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-gradient-to-tr from-cute-pink to-cute-purple rounded-2xl rotate-3 flex items-center justify-center shadow-lg shadow-pink-200/50 transition-all duration-500 hover:rotate-12 hover:scale-110">
-              <SparklesIcon className="w-6 h-6 text-white drop-shadow-sm" />
+        <div className="max-w-6xl mx-auto px-2 sm:px-4 py-2 sm:py-0 sm:h-16 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2">
+          {/* Logo - Hidden on very small screens, shown on sm+ */}
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-tr from-cute-pink to-cute-purple rounded-xl sm:rounded-2xl rotate-3 flex items-center justify-center shadow-lg shadow-pink-200/50 transition-all duration-500 hover:rotate-12 hover:scale-110">
+              <SparklesIcon className="w-5 h-5 sm:w-6 sm:h-6 text-white drop-shadow-sm" />
             </div>
-            <span className="font-display font-bold text-2xl tracking-tight text-slate-800">Animate<span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-400">Image</span></span>
+            <span className="font-display font-bold text-lg sm:text-2xl tracking-tight text-slate-800 hidden xs:inline">
+              Animate<span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-400">Image</span>
+            </span>
           </div>
 
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1 bg-white/50 p-1.5 rounded-full border border-white/50 shadow-inner">
+          {/* Right side controls */}
+          <div className="flex items-center gap-2 sm:gap-4 flex-1 justify-end">
+            {/* Mode Toggle */}
+            <div className="flex items-center gap-1 bg-white/50 p-1 sm:p-1.5 rounded-full border border-white/50 shadow-inner">
               <button
                 onClick={() => switchMode('animate')}
-                className={`px-5 py-2 rounded-full text-sm font-bold transition-all duration-300 hover:scale-105 active:scale-95 ${mode === 'animate'
+                className={`px-2 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold transition-all duration-300 hover:scale-105 active:scale-95 ${mode === 'animate'
                   ? 'bg-gradient-to-r from-cute-pink to-cute-purple text-white shadow-md shadow-pink-200'
                   : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
                   }`}
               >
-                <span className="flex items-center gap-2"><VideoIcon className="w-4 h-4" /> Animate</span>
+                <span className="flex items-center gap-1 sm:gap-2">
+                  <VideoIcon className="w-4 h-4" />
+                  <span className="hidden sm:inline">Animate</span>
+                </span>
               </button>
               <button
                 onClick={() => switchMode('edit')}
-                className={`px-5 py-2 rounded-full text-sm font-bold transition-all duration-300 hover:scale-105 active:scale-95 ${mode === 'edit'
+                className={`px-2 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold transition-all duration-300 hover:scale-105 active:scale-95 ${mode === 'edit'
                   ? 'bg-gradient-to-r from-cute-pink to-cute-purple text-white shadow-md shadow-pink-200'
                   : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
                   }`}
               >
-                <span className="flex items-center gap-2"><WandIcon className="w-4 h-4" /> Edit Image</span>
+                <span className="flex items-center gap-1 sm:gap-2">
+                  <WandIcon className="w-4 h-4" />
+                  <span className="hidden sm:inline">Edit</span>
+                </span>
               </button>
             </div>
 
-            <div className="flex items-center gap-3">
-              {/* Settings Button */}
-              <button
-                onClick={openSettings}
-                className="p-2.5 text-slate-400 hover:text-cute-purple hover:bg-white rounded-full transition-all duration-300 shadow-sm hover:shadow-md hover:rotate-45 hover:scale-110"
-                title="API Key Settings"
-              >
-                <SettingsIcon className="w-5 h-5" />
-              </button>
+            {/* Settings Button */}
+            <button
+              onClick={openSettings}
+              className="p-2 sm:p-2.5 text-slate-400 hover:text-cute-purple hover:bg-white rounded-full transition-all duration-300 shadow-sm hover:shadow-md hover:rotate-45 hover:scale-110 shrink-0"
+              title="API Key Settings"
+            >
+              <SettingsIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+            </button>
 
-              {/* Auth: Google Sign-In or User Profile */}
+            {/* Auth: Google Sign-In or User Profile */}
+            <div className="shrink-0">
               {authLoading ? (
-                <div className="w-10 h-10 rounded-full bg-white/50 animate-pulse" />
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/50 animate-pulse" />
               ) : user ? (
                 <UserProfileMenu user={user} onSignOut={() => setUser(null)} />
               ) : (
                 <div className="p-[2px] rounded-full bg-gradient-to-r from-cute-pink to-cute-purple shadow-sm hover:shadow-md transition-all duration-300 hover:scale-105">
-                  <div className="bg-white rounded-full overflow-hidden min-w-[120px]">
-                    <CustomGoogleSignInButton width="100%" />
+                  <div className="bg-white rounded-full overflow-hidden">
+                    <CustomGoogleSignInButton width="auto" />
                   </div>
                 </div>
               )}

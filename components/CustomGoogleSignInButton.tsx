@@ -31,10 +31,10 @@ const CustomGoogleSignInButton: React.FC<CustomGoogleSignInButtonProps> = ({ wid
     return (
         <div ref={containerRef} className="relative group cursor-pointer" style={{ width }}>
             {/* Custom Styled Button (Visible) */}
-            <div className="flex items-center justify-center gap-3 px-6 py-3 bg-white border border-slate-200 rounded-full shadow-sm group-hover:shadow-md group-hover:border-purple-200 transition-all duration-300 group-hover:scale-[1.02]">
+            <div className="flex items-center justify-center gap-2 sm:gap-3 px-3 sm:px-6 py-2 sm:py-3 bg-white border border-slate-200 rounded-full shadow-sm group-hover:shadow-md group-hover:border-purple-200 transition-all duration-300 group-hover:scale-[1.02]">
                 <GoogleIcon className="w-5 h-5" />
-                <span className="font-bold text-slate-600 group-hover:text-purple-600 transition-colors">
-                    Sign in with Google
+                <span className="font-bold text-slate-600 group-hover:text-purple-600 transition-colors text-sm sm:text-base hidden sm:inline">
+                    Sign in
                 </span>
             </div>
 
