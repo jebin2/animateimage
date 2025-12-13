@@ -10,6 +10,7 @@ import {
 } from '../services/processHistoryService';
 import { updateUserCredits } from '../services/googleAuthService';
 import { videoStorageService } from '../services/videoStorageService';
+import { showSuccess, showError } from '../services/toastService';
 import { HistoryIcon, AlertCircleIcon, VideoIcon, WandIcon, TrashIcon, RefreshIcon, DownloadIcon } from './Icons';
 
 interface ProcessHistoryModalProps {
@@ -77,12 +78,13 @@ const ProcessHistoryModal: React.FC<ProcessHistoryModalProps> = ({ isOpen, onClo
 
             // Show success message (especially for refunds)
             if (result.message) {
-                // Ideally use a toast here, but alert is fine for now as per existing pattern
-                // or just rely on the UI update. 
-                // If there was a refund, let the user know
+                let msg = result.message;
                 if (result.credits_refunded && result.credits_refunded > 0) {
-                    alert(`${result.message}\n(${result.credits_refunded} credits refunded)`);
+                    msg += ` (${result.credits_refunded} credits refunded)`;
                 }
+                showSuccess(msg);
+            } else {
+                showSuccess('Job deleted successfully');
             }
 
             // Update user credits if returned
@@ -92,7 +94,7 @@ const ProcessHistoryModal: React.FC<ProcessHistoryModalProps> = ({ isOpen, onClo
 
             loadHistory(page);
         } else {
-            alert(result.error || 'Failed to delete job');
+            showError(result.error || 'Failed to delete job');
         }
     };
 
