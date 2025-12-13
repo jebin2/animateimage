@@ -177,7 +177,7 @@ const ToastContainer: React.FC = () => {
             {/* Keyframes for animation */}
             {/* Keyframes for animation removed in favor of Tailwind animate-in */}
             <div
-                className="fixed top-4 left-1/2 -translate-x-1/2 z-[99999] flex flex-col gap-2 pointer-events-auto"
+                className="fixed top-4 left-1/2 -translate-x-1/2 z-[70] flex flex-col gap-2 pointer-events-auto"
                 aria-live="polite"
                 aria-label="Notifications"
             >

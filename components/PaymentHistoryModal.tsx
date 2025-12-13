@@ -62,7 +62,7 @@ const PaymentHistoryModal: React.FC<PaymentHistoryModalProps> = ({ isOpen, onClo
     if (!isOpen) return null;
 
     return createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 overflow-y-auto">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 overflow-y-auto">
             {/* Backdrop */}
             <div
                 className="fixed inset-0 bg-black/60 backdrop-blur-sm"
