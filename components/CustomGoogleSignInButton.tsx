@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { renderGoogleButton } from '../services/googleAuthService';
+import { renderGoogleButton, signInWithGoogle } from '../services/googleAuthService';
 import { GoogleIcon } from './Icons';
 
 interface CustomGoogleSignInButtonProps {
@@ -60,21 +60,33 @@ const CustomGoogleSignInButton: React.FC<CustomGoogleSignInButtonProps> = ({ wid
         };
     }, []);
 
+    // Fallback click handler for when overlay doesn't work
+    const handleClick = () => {
+        if (!isReady) {
+            // If Google button not ready, try to trigger sign-in directly
+            signInWithGoogle();
+        }
+        // If ready, the Google button overlay should handle the click
+    };
+
     return (
-        <div ref={containerRef} className="relative group cursor-pointer" style={{ width }}>
-            {/* Custom Styled Button (Visible) */}
-            <div className="flex items-center justify-center gap-2 sm:gap-3 px-3 sm:px-6 py-2 sm:py-3 bg-white border border-slate-200 rounded-full shadow-sm group-hover:shadow-md group-hover:border-purple-200 transition-all duration-300 group-hover:scale-[1.02]">
+        <div ref={containerRef} className="relative group" style={{ width }}>
+            {/* Custom Styled Button (Visible) - now also handles clicks as fallback */}
+            <button
+                type="button"
+                onClick={handleClick}
+                className="w-full flex items-center justify-center gap-2 sm:gap-3 px-3 sm:px-6 py-2 sm:py-3 bg-white border border-slate-200 rounded-full shadow-sm hover:shadow-md hover:border-purple-200 transition-all duration-300 hover:scale-[1.02] cursor-pointer"
+            >
                 <GoogleIcon className="w-5 h-5" />
                 <span className="font-bold text-slate-600 group-hover:text-purple-600 transition-colors text-sm sm:text-base hidden sm:inline">
                     Sign in
                 </span>
-            </div>
+            </button>
 
-            {/* Actual Google Button (Invisible Overlay) - only clickable when ready */}
+            {/* Actual Google Button (Invisible Overlay) - positioned on top when ready */}
             <div
                 ref={googleButtonRef}
-                className={`absolute inset-0 opacity-0 z-10 overflow-hidden ${isReady ? '' : 'pointer-events-none'}`}
-                style={{ transform: 'scale(1.05)' }} // Slight scale to ensure coverage
+                className={`absolute inset-0 z-10 overflow-hidden rounded-full ${isReady ? 'opacity-[0.01]' : 'opacity-0 pointer-events-none'}`}
             />
         </div>
     );
