@@ -120,7 +120,7 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ user, onSignOut, onCr
                         <div className="p-2">
                             <button
                                 onClick={handleContactClick}
-                                className="w-full flex items-center gap-3 px-3 py-2 sm:py-2.5 text-left text-slate-600 hover:bg-purple-50 hover:text-purple-600 rounded-xl transition-all duration-300 hover:translate-x-1 font-medium"
+                                className="hidden w-full flex items-center gap-3 px-3 py-2 sm:py-2.5 text-left text-slate-600 hover:bg-purple-50 hover:text-purple-600 rounded-xl transition-all duration-300 hover:translate-x-1 font-medium"
                             >
                                 <MessageIcon className="w-4 h-4" />
                                 <span className="text-xs sm:text-sm">Contact Us</span>

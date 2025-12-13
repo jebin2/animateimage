@@ -121,8 +121,8 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onClose, onSubmit, er
             className="hidden"
           />
           <div className="flex items-center gap-2 flex-1 select-none">
-            <CreditCardIcon className={`w-5 h-5 ${useCredit ? 'text-pink-500' : 'text-slate-400'}`} />
-            <label htmlFor="useCredit" className={`text-sm font-bold cursor-pointer ${useCredit ? 'text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-purple-500' : 'text-slate-500'}`}>
+            <CreditCardIcon className={`w-5 h-5 ${useCredit ? 'text-pink-500' : 'text-slate-600'}`} />
+            <label htmlFor="useCredit" className={`text-sm font-extrabold cursor-pointer ${useCredit ? 'text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-purple-500' : 'text-slate-700'}`}>
               Use Credits
             </label>
           </div>

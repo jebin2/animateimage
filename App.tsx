@@ -360,8 +360,8 @@ const App: React.FC = () => {
                     <div className="w-16 h-16 lg:w-20 lg:h-20 rounded-full bg-white shadow-lg shadow-pink-100 flex items-center justify-center mb-3 lg:mb-4 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300">
                       <UploadIcon className="w-7 h-7 lg:w-8 lg:h-8 text-pink-300 group-hover:text-pink-400 transition-colors" />
                     </div>
-                    <p className="text-slate-600 font-bold text-base lg:text-lg">Click to upload image</p>
-                    <p className="text-slate-400 text-sm mt-1">JPG, PNG supported</p>
+                    <p className="text-slate-700 font-extrabold text-base lg:text-lg">Click to upload image</p>
+                    <p className="text-slate-500 text-sm mt-1 font-medium">JPG, PNG supported</p>
                   </>
                 )}
                 <input
@@ -377,7 +377,7 @@ const App: React.FC = () => {
             {/* Controls */}
             <div className="bg-white/80 backdrop-blur-md border border-white/60 rounded-2xl lg:rounded-3xl p-4 lg:p-5 space-y-4 lg:space-y-5 shadow-xl shadow-purple-100/50">
               <div>
-                <label className="block text-sm font-bold text-slate-600 mb-2 lg:mb-3 ml-1">
+                <label className="block text-sm font-extrabold text-slate-700 mb-2 lg:mb-3 ml-1">
                   {mode === 'animate' ? 'Animation Description' : 'Edit Instructions'}
                 </label>
 
@@ -408,22 +408,22 @@ const App: React.FC = () => {
                       ? "Leave empty for AI auto-description, or describe the movement..."
                       : "E.g., Add a cyberpunk neon glow, remove background..."
                     }
-                    className="w-full bg-white border border-slate-200 rounded-xl lg:rounded-2xl p-3 lg:p-4 text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-pink-100 focus:border-pink-300 transition-all duration-300 focus:scale-[1.01] resize-none h-24 lg:h-28 shadow-sm"
+                    className="w-full bg-white border border-slate-200 rounded-xl lg:rounded-2xl p-3 lg:p-4 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-pink-100 focus:border-pink-300 transition-all duration-300 focus:scale-[1.01] resize-none h-24 lg:h-28 shadow-sm font-medium"
                   />
                 )}
               </div>
 
               {mode === 'animate' && (
                 <div>
-                  <label className="block text-sm font-bold text-slate-600 mb-2 lg:mb-3 ml-1">
+                  <label className="block text-sm font-extrabold text-slate-700 mb-2 lg:mb-3 ml-1">
                     Output Aspect Ratio
                   </label>
                   <div className="grid grid-cols-2 gap-3">
                     <button
                       onClick={() => setAspectRatio('16:9')}
                       className={`py-2.5 lg:py-3 px-4 rounded-xl border text-sm font-bold transition-all duration-300 hover:scale-105 active:scale-95 ${aspectRatio === '16:9'
-                        ? 'bg-pink-50 border-pink-200 text-pink-500 shadow-inner'
-                        : 'bg-white border-slate-100 text-slate-400 hover:border-pink-200 hover:text-pink-400'
+                        ? 'bg-pink-50 border-pink-200 text-pink-600 shadow-inner'
+                        : 'bg-white border-slate-100 text-slate-600 hover:border-pink-200 hover:text-pink-500'
                         }`}
                     >
                       Landscape (16:9)
@@ -431,8 +431,8 @@ const App: React.FC = () => {
                     <button
                       onClick={() => setAspectRatio('9:16')}
                       className={`py-2.5 lg:py-3 px-4 rounded-xl border text-sm font-bold transition-all duration-300 hover:scale-105 active:scale-95 ${aspectRatio === '9:16'
-                        ? 'bg-pink-50 border-pink-200 text-pink-500 shadow-inner'
-                        : 'bg-white border-slate-100 text-slate-400 hover:border-pink-200 hover:text-pink-400'
+                        ? 'bg-pink-50 border-pink-200 text-pink-600 shadow-inner'
+                        : 'bg-white border-slate-100 text-slate-600 hover:border-pink-200 hover:text-pink-500'
                         }`}
                     >
                       Portrait (9:16)
@@ -474,12 +474,12 @@ const App: React.FC = () => {
 
                 {/* Empty State */}
                 {!processing.isLoading && !resultImage && !resultVideo && (
-                  <div className="text-center p-6 lg:p-8 opacity-60">
+                  <div className="text-center p-6 lg:p-8 opacity-80">
                     <div className="w-20 h-20 lg:w-24 lg:h-24 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-purple-100">
-                      {mode === 'animate' ? <VideoIcon className="w-8 h-8 lg:w-10 lg:h-10 text-purple-300" /> : <WandIcon className="w-8 h-8 lg:w-10 lg:h-10 text-purple-300" />}
+                      {mode === 'animate' ? <VideoIcon className="w-8 h-8 lg:w-10 lg:h-10 text-purple-400" /> : <WandIcon className="w-8 h-8 lg:w-10 lg:h-10 text-purple-400" />}
                     </div>
-                    <p className="text-lg lg:text-xl font-bold text-slate-600">Ready to create magic</p>
-                    <p className="text-slate-400 text-sm lg:text-base">Upload an image and click Generate</p>
+                    <p className="text-lg lg:text-xl font-extrabold text-slate-700">Ready to create magic</p>
+                    <p className="text-slate-500 text-sm lg:text-base font-medium">Upload an image and click Generate</p>
                   </div>
                 )}
 
