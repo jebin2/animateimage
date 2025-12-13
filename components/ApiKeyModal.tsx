@@ -101,18 +101,29 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onClose, onSubmit, er
         )}
 
         {/* Use Credit Checkbox */}
-        <div className={`mb-6 flex items-center gap-3 p-3 rounded-2xl border transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] ${useCredit ? 'bg-purple-50 border-purple-200' : 'bg-slate-50 border-slate-100 hover:bg-slate-100'}`}>
+        <div
+          className={`mb-6 flex items-center gap-3 p-3 rounded-2xl border transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${useCredit ? 'bg-gradient-to-r from-pink-50 to-purple-50 border-pink-200' : 'bg-slate-50 border-slate-100 hover:bg-slate-100'}`}
+          onClick={() => handleUseCreditChange(!useCredit)}
+        >
+          {/* Custom Checkbox */}
+          <div className={`relative w-5 h-5 rounded-lg border-2 transition-all duration-300 flex items-center justify-center shrink-0 ${useCredit ? 'bg-gradient-to-r from-cute-pink to-cute-purple border-pink-300' : 'bg-white border-slate-300'}`}>
+            {useCredit && (
+              <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+              </svg>
+            )}
+          </div>
           <input
             type="checkbox"
             id="useCredit"
             checked={useCredit}
             onChange={(e) => handleUseCreditChange(e.target.checked)}
-            className="w-5 h-5 rounded-lg border-slate-300 text-purple-500 focus:ring-purple-200 bg-white"
+            className="hidden"
           />
-          <div className="flex items-center gap-2 flex-1 cursor-pointer select-none" onClick={() => handleUseCreditChange(!useCredit)}>
-            <CreditCardIcon className={`w-5 h-5 ${useCredit ? 'text-purple-500' : 'text-slate-400'}`} />
-            <label htmlFor="useCredit" className={`text-sm font-bold cursor-pointer ${useCredit ? 'text-purple-700' : 'text-slate-500'}`}>
-              Use Credit System
+          <div className="flex items-center gap-2 flex-1 select-none">
+            <CreditCardIcon className={`w-5 h-5 ${useCredit ? 'text-pink-500' : 'text-slate-400'}`} />
+            <label htmlFor="useCredit" className={`text-sm font-bold cursor-pointer ${useCredit ? 'text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-purple-500' : 'text-slate-500'}`}>
+              Use Credits
             </label>
           </div>
           {user && useCredit && (
