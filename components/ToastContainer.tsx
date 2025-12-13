@@ -36,31 +36,31 @@ const CloseIcon: React.FC<{ className?: string }> = ({ className }) => (
 // Toast type styles
 const toastStyles = {
     success: {
-        bg: 'bg-emerald-950/95',
-        border: 'border-emerald-500/50',
-        icon: 'text-emerald-400',
-        text: 'text-emerald-100',
+        bg: 'bg-green-50/95',
+        border: 'border-green-200',
+        icon: 'text-green-500',
+        text: 'text-green-800',
         IconComponent: CheckIcon
     },
     error: {
-        bg: 'bg-red-950/95',
-        border: 'border-red-500/50',
-        icon: 'text-red-400',
-        text: 'text-red-100',
+        bg: 'bg-red-50/95',
+        border: 'border-red-200',
+        icon: 'text-red-500',
+        text: 'text-red-800',
         IconComponent: ErrorIcon
     },
     info: {
-        bg: 'bg-blue-950/95',
-        border: 'border-blue-500/50',
-        icon: 'text-blue-400',
-        text: 'text-blue-100',
+        bg: 'bg-blue-50/95',
+        border: 'border-blue-200',
+        icon: 'text-blue-500',
+        text: 'text-blue-800',
         IconComponent: InfoIcon
     },
     warning: {
-        bg: 'bg-amber-950/95',
-        border: 'border-amber-500/50',
-        icon: 'text-amber-400',
-        text: 'text-amber-100',
+        bg: 'bg-yellow-50/95',
+        border: 'border-yellow-200',
+        icon: 'text-yellow-500',
+        text: 'text-yellow-800',
         IconComponent: WarningIcon
     }
 };
@@ -117,10 +117,10 @@ const ToastItem: React.FC<ToastItemProps> = ({ toast, onClose, index }) => {
 
     // Progress bar color based on toast type
     const progressColors = {
-        success: 'bg-emerald-400',
-        error: 'bg-red-400',
-        info: 'bg-blue-400',
-        warning: 'bg-amber-400'
+        success: 'bg-green-500',
+        error: 'bg-red-500',
+        info: 'bg-blue-500',
+        warning: 'bg-yellow-500'
     };
 
     return (
@@ -128,11 +128,10 @@ const ToastItem: React.FC<ToastItemProps> = ({ toast, onClose, index }) => {
             className={`
                 relative flex items-center gap-3 px-4 py-3 rounded-xl border shadow-2xl backdrop-blur-md overflow-hidden
                 ${style.bg} ${style.border}
-                transform transition-all duration-300 ease-out
-                ${isExiting ? 'opacity-0 -translate-y-2' : 'opacity-100 translate-y-0'}
+                transform transition-all duration-300 ease-out hover:scale-[1.02] hover:shadow-lg
+                ${isExiting ? 'animate-out fade-out slide-out-to-top-2' : 'animate-in slide-in-from-top-4 fade-in'}
             `}
             style={{
-                animation: isExiting ? undefined : `slideDown 0.3s ease-out ${index * 0.05}s both`,
                 minWidth: '280px',
                 maxWidth: '400px'
             }}
@@ -140,10 +139,10 @@ const ToastItem: React.FC<ToastItemProps> = ({ toast, onClose, index }) => {
             onMouseLeave={() => setIsHovered(false)}
         >
             <IconComponent className={`w-5 h-5 flex-shrink-0 ${style.icon}`} />
-            <p className={`flex-1 min-w-0 text-sm font-medium break-words ${style.text}`}>{toast.message}</p>
+            <p className={`flex-1 min-w-0 text-sm font-bold break-words ${style.text}`}>{toast.message}</p>
             <button
                 onClick={handleClose}
-                className={`p-1 flex-shrink-0 rounded-lg hover:bg-white/10 transition-colors ${style.icon}`}
+                className={`p-1 flex-shrink-0 rounded-lg hover:bg-black/5 transition-all duration-300 hover:rotate-90 ${style.icon}`}
                 aria-label="Dismiss"
             >
                 <CloseIcon className="w-4 h-4" />
@@ -151,7 +150,7 @@ const ToastItem: React.FC<ToastItemProps> = ({ toast, onClose, index }) => {
 
             {/* Progress bar timer */}
             {toast.duration > 0 && (
-                <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/10">
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/5">
                     <div
                         className={`h-full ${progressColors[toast.type]} transition-all duration-75 ease-linear`}
                         style={{ width: `${progressPercent}%` }}
@@ -176,18 +175,7 @@ const ToastContainer: React.FC = () => {
     return createPortal(
         <>
             {/* Keyframes for animation */}
-            <style>{`
-                @keyframes slideDown {
-                    from {
-                        opacity: 0;
-                        transform: translateY(-20px);
-                    }
-                    to {
-                        opacity: 1;
-                        transform: translateY(0);
-                    }
-                }
-            `}</style>
+            {/* Keyframes for animation removed in favor of Tailwind animate-in */}
             <div
                 className="fixed top-4 left-1/2 -translate-x-1/2 z-[99999] flex flex-col gap-2 pointer-events-auto"
                 aria-live="polite"

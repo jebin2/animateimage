@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { SparklesIcon, AlertCircleIcon, CreditCardIcon } from './Icons';
-import { GoogleUser, renderGoogleButton } from '../services/googleAuthService';
+import { GoogleUser } from '../services/googleAuthService';
+import CustomGoogleSignInButton from './CustomGoogleSignInButton';
 import UserAvatar from './UserAvatar';
 
 interface ApiKeyModalProps {
@@ -15,7 +16,6 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onClose, onSubmit, er
   const [key, setKey] = useState('');
   const [useCredit, setUseCredit] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
-  const googleButtonContainerRef = useRef<HTMLDivElement>(null);
 
   // Reset state when modal opens
   useEffect(() => {
@@ -44,28 +44,7 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onClose, onSubmit, er
   }, [isOpen, user]);
 
   // Render Google button when needed
-  useEffect(() => {
-    if (isOpen && !user && useCredit && googleButtonContainerRef.current) {
-      const timer = setTimeout(() => {
-        if (googleButtonContainerRef.current) {
-          // Clear previous button
-          googleButtonContainerRef.current.innerHTML = '';
-          try {
-            renderGoogleButton(googleButtonContainerRef.current, {
-              theme: 'filled_black',
-              size: 'large',
-              text: 'signin_with',
-              shape: 'pill',
-              width: 280
-            });
-          } catch (e) {
-            console.error('Failed to render Google button:', e);
-          }
-        }
-      }, 100);
-      return () => clearTimeout(timer);
-    }
-  }, [isOpen, user, useCredit]);
+  // Removed direct renderGoogleButton effect as it's now handled by CustomGoogleSignInButton
 
   const handleUseCreditChange = (checked: boolean) => {
     setUseCredit(checked);
@@ -94,18 +73,18 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onClose, onSubmit, er
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-full max-w-md shadow-2xl scale-100 animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+      <div className="bg-white border border-white/60 rounded-3xl p-6 w-full max-w-md shadow-2xl shadow-purple-100/50 scale-100 animate-in zoom-in-95 duration-300">
         {/* Header */}
-        <div className="flex items-center justify-between mb-4 text-white">
+        <div className="flex items-center justify-between mb-4 text-slate-800">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-indigo-500/10 rounded-lg flex items-center justify-center">
-              <SparklesIcon className="w-5 h-5 text-indigo-400" />
+            <div className="w-10 h-10 bg-gradient-to-tr from-cute-pink to-cute-purple rounded-xl flex items-center justify-center shadow-md shadow-pink-100">
+              <SparklesIcon className="w-5 h-5 text-white" />
             </div>
-            <h2 className="text-xl font-bold">Settings</h2>
+            <h2 className="text-xl font-bold font-display">Settings</h2>
           </div>
           {user && useCredit && (
-            <div className="bg-indigo-500/20 text-indigo-300 px-3 py-1 rounded-full text-xs font-medium border border-indigo-500/30">
+            <div className="bg-purple-50 text-purple-600 px-3 py-1 rounded-full text-xs font-bold border border-purple-100">
               {user.credits} Credits
             </div>
           )}
@@ -113,32 +92,32 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onClose, onSubmit, er
 
         {/* Error Message */}
         {(errorMessage || validationError) && (
-          <div className="mb-4 p-3 bg-red-900/20 border border-red-900/50 rounded-lg flex items-start gap-2 max-h-32 overflow-y-auto">
+          <div className="mb-4 p-3 bg-red-50 border border-red-100 rounded-2xl flex items-start gap-2 max-h-32 overflow-y-auto">
             <AlertCircleIcon className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
-            <p className="text-sm text-red-200 font-medium break-all">
+            <p className="text-sm text-red-600 font-medium break-all">
               {validationError || errorMessage}
             </p>
           </div>
         )}
 
         {/* Use Credit Checkbox */}
-        <div className={`mb-6 flex items-center gap-3 p-3 rounded-xl border transition-colors ${useCredit ? 'bg-indigo-900/20 border-indigo-500/30' : 'bg-slate-950/50 border-slate-800 hover:bg-slate-900/50'}`}>
+        <div className={`mb-6 flex items-center gap-3 p-3 rounded-2xl border transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] ${useCredit ? 'bg-purple-50 border-purple-200' : 'bg-slate-50 border-slate-100 hover:bg-slate-100'}`}>
           <input
             type="checkbox"
             id="useCredit"
             checked={useCredit}
             onChange={(e) => handleUseCreditChange(e.target.checked)}
-            className="w-4 h-4 rounded border-slate-600 text-indigo-600 focus:ring-indigo-500 bg-slate-900"
+            className="w-5 h-5 rounded-lg border-slate-300 text-purple-500 focus:ring-purple-200 bg-white"
           />
           <div className="flex items-center gap-2 flex-1 cursor-pointer select-none" onClick={() => handleUseCreditChange(!useCredit)}>
-            <CreditCardIcon className={`w-4 h-4 ${useCredit ? 'text-indigo-400' : 'text-slate-500'}`} />
-            <label htmlFor="useCredit" className={`text-sm font-medium cursor-pointer ${useCredit ? 'text-indigo-200' : 'text-slate-300'}`}>
+            <CreditCardIcon className={`w-5 h-5 ${useCredit ? 'text-purple-500' : 'text-slate-400'}`} />
+            <label htmlFor="useCredit" className={`text-sm font-bold cursor-pointer ${useCredit ? 'text-purple-700' : 'text-slate-500'}`}>
               Use Credit System
             </label>
           </div>
           {user && useCredit && (
-            <span className="text-xs text-green-400 flex items-center gap-1">
-              <span className="w-2 h-2 bg-green-400 rounded-full"></span>
+            <span className="text-xs text-green-500 font-bold flex items-center gap-1">
+              <span className="w-2 h-2 bg-green-400 rounded-full shadow-sm"></span>
               Signed in
             </span>
           )}
@@ -149,7 +128,7 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onClose, onSubmit, er
           // Credit system selected
           user ? (
             // User is signed in - show confirmation
-            <div className="mb-6 p-4 bg-slate-950/50 rounded-xl border border-slate-800">
+            <div className="mb-6 p-4 bg-slate-50 rounded-2xl border border-slate-100">
               <div className="flex items-center gap-3">
                 <UserAvatar
                   src={user.profilePicture}
@@ -158,29 +137,33 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onClose, onSubmit, er
                   size="md"
                 />
                 <div className="flex-1 min-w-0">
-                  <p className="text-white font-medium truncate">{user.name || 'User'}</p>
-                  <p className="text-sm text-slate-400 truncate">{user.email}</p>
+                  <p className="text-slate-800 font-bold truncate">{user.name || 'User'}</p>
+                  <p className="text-sm text-slate-500 truncate">{user.email}</p>
                 </div>
               </div>
-              <p className="mt-3 text-sm text-slate-400">
+              <p className="mt-3 text-sm text-slate-500">
                 You'll use credits from your account for image generation.
               </p>
             </div>
           ) : (
             // Not signed in - show Google Sign-In button
-            <div className="mb-6 p-4 bg-slate-950/50 rounded-xl border border-slate-800">
-              <p className="text-slate-400 text-sm mb-4 text-center">
+            <div className="mb-6 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+              <p className="text-slate-500 text-sm mb-4 text-center font-medium">
                 Sign in with Google to use the credit system
               </p>
-              <div ref={googleButtonContainerRef} className="flex justify-center">
-                {/* Google button rendered here */}
+              <div className="flex justify-center">
+                <div className="p-[2px] rounded-full bg-gradient-to-r from-cute-pink to-cute-purple shadow-md hover:shadow-lg hover:shadow-pink-200 transition-all duration-300 hover:scale-[1.02]">
+                  <div className="bg-white rounded-full overflow-hidden">
+                    <CustomGoogleSignInButton width="280px" />
+                  </div>
+                </div>
               </div>
             </div>
           )
         ) : (
           // API Key input
           <div className="space-y-2 mb-6">
-            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">
               Gemini API Key
             </label>
             <input
@@ -188,11 +171,11 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onClose, onSubmit, er
               value={key}
               onChange={(e) => setKey(e.target.value)}
               placeholder="AIzaSy..."
-              className={`w-full bg-slate-950 border rounded-xl p-3 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 transition-all ${errorMessage ? 'border-red-500/50 focus:ring-red-500/50' : 'border-slate-700 focus:ring-indigo-500/50'}`}
+              className={`w-full bg-slate-50 border rounded-2xl p-4 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-4 transition-all ${errorMessage ? 'border-red-200 focus:ring-red-100' : 'border-slate-200 focus:ring-purple-100 focus:border-purple-300'}`}
               autoFocus
             />
-            <p className="text-xs text-slate-500">
-              Don't have a key? <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-indigo-400 hover:text-indigo-300 hover:underline">Get one here</a>
+            <p className="text-xs text-slate-500 ml-1">
+              Don't have a key? <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-purple-500 hover:text-purple-600 hover:underline font-bold">Get one here</a>
             </p>
           </div>
         )}
@@ -201,14 +184,14 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onClose, onSubmit, er
         <div className="flex gap-3 justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors font-medium text-sm"
+            className="px-5 py-2.5 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors font-bold text-sm"
           >
             Cancel
           </button>
           <button
             onClick={handleSubmit}
             disabled={!canSubmit()}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-all text-sm shadow-lg shadow-indigo-500/20"
+            className="px-6 py-2.5 bg-gradient-to-r from-cute-pink to-cute-purple hover:shadow-lg hover:shadow-pink-200 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-bold transition-all duration-300 hover:scale-105 active:scale-95"
           >
             {errorMessage ? 'Retry' : 'Save'}
           </button>

@@ -2,13 +2,14 @@ import React, { useState, useRef, useEffect } from 'react';
 import { AppMode, ProcessingState, AspectRatio } from './types';
 import { editImage, generateVideo, generateAnimationPrompt, GeminiOptions } from './services/geminiService';
 import { initUsage, recordUsage } from './services/usageService';
-import { UploadIcon, VideoIcon, WandIcon, TrashIcon, AlertCircleIcon, SparklesIcon, SettingsIcon, GoogleIcon } from './components/Icons';
+import { UploadIcon, VideoIcon, WandIcon, TrashIcon, AlertCircleIcon, SparklesIcon, SettingsIcon } from './components/Icons';
+import CustomGoogleSignInButton from './components/CustomGoogleSignInButton';
 import LoadingSpinner from './components/LoadingSpinner';
 import ApiKeyModal from './components/ApiKeyModal';
 import UserProfileMenu from './components/UserProfileMenu';
 import ToastContainer from './components/ToastContainer';
 import { showError } from './services/toastService';
-import { GoogleUser, initializeAuth, initGoogleAuth, renderGoogleButton, onAuthStateChange, isAuthenticated } from './services/googleAuthService';
+import { GoogleUser, initializeAuth, initGoogleAuth, onAuthStateChange, isAuthenticated } from './services/googleAuthService';
 
 
 const App: React.FC = () => {
@@ -32,7 +33,6 @@ const App: React.FC = () => {
   const [resultImage, setResultImage] = useState<string | null>(null);
   const [resultVideo, setResultVideo] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const googleButtonRef = useRef<HTMLDivElement>(null);
 
   // Auth state
   const [user, setUser] = useState<GoogleUser | null>(null);
@@ -72,25 +72,7 @@ const App: React.FC = () => {
   }, []);
 
   // Render Google button when not authenticated and container is available
-  useEffect(() => {
-    if (!authLoading && !user && googleButtonRef.current) {
-      // Small delay to ensure Google SDK is initialized
-      const timer = setTimeout(() => {
-        if (googleButtonRef.current) {
-          try {
-            renderGoogleButton(googleButtonRef.current, {
-              theme: 'filled_black',
-              size: 'medium',
-              shape: 'pill'
-            });
-          } catch (e) {
-            console.error('Failed to render Google button:', e);
-          }
-        }
-      }, 100);
-      return () => clearTimeout(timer);
-    }
-  }, [authLoading, user]);
+  // Removed direct renderGoogleButton effect as it's now handled by CustomGoogleSignInButton
 
   const executeGeneration = async (options: GeminiOptions) => {
     // Reset previous results
@@ -272,33 +254,33 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-indigo-500/30 relative">
+    <div className="min-h-screen bg-transparent text-slate-700 font-sans selection:bg-cute-pink selection:text-pink-900 relative">
       {/* Header */}
-      <header className="border-b border-slate-800/50 bg-slate-900/50 backdrop-blur-md sticky top-0 z-50">
+      <header className="border-b border-white/20 bg-white/60 backdrop-blur-md sticky top-0 z-50 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-tr from-indigo-500 to-purple-500 rounded-lg flex items-center justify-center">
-              <SparklesIcon className="w-5 h-5 text-white" />
+            <div className="w-10 h-10 bg-gradient-to-tr from-cute-pink to-cute-purple rounded-2xl rotate-3 flex items-center justify-center shadow-lg shadow-pink-200/50 transition-all duration-500 hover:rotate-12 hover:scale-110">
+              <SparklesIcon className="w-6 h-6 text-white drop-shadow-sm" />
             </div>
-            <span className="font-bold text-lg tracking-tight text-white">Animate<span className="text-indigo-400">Image</span></span>
+            <span className="font-display font-bold text-2xl tracking-tight text-slate-800">Animate<span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-400">Image</span></span>
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1 bg-slate-800/50 p-1 rounded-lg border border-slate-700/50">
+            <div className="flex items-center gap-1 bg-white/50 p-1.5 rounded-full border border-white/50 shadow-inner">
               <button
                 onClick={() => switchMode('animate')}
-                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${mode === 'animate'
-                  ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
+                className={`px-5 py-2 rounded-full text-sm font-bold transition-all duration-300 hover:scale-105 active:scale-95 ${mode === 'animate'
+                  ? 'bg-gradient-to-r from-cute-pink to-cute-purple text-white shadow-md shadow-pink-200'
+                  : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
                   }`}
               >
                 <span className="flex items-center gap-2"><VideoIcon className="w-4 h-4" /> Animate</span>
               </button>
               <button
                 onClick={() => switchMode('edit')}
-                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${mode === 'edit'
-                  ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
+                className={`px-5 py-2 rounded-full text-sm font-bold transition-all duration-300 hover:scale-105 active:scale-95 ${mode === 'edit'
+                  ? 'bg-gradient-to-r from-cute-pink to-cute-purple text-white shadow-md shadow-pink-200'
+                  : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
                   }`}
               >
                 <span className="flex items-center gap-2"><WandIcon className="w-4 h-4" /> Edit Image</span>
@@ -309,7 +291,7 @@ const App: React.FC = () => {
               {/* Settings Button */}
               <button
                 onClick={openSettings}
-                className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-full transition-colors"
+                className="p-2.5 text-slate-400 hover:text-cute-purple hover:bg-white rounded-full transition-all duration-300 shadow-sm hover:shadow-md hover:rotate-45 hover:scale-110"
                 title="API Key Settings"
               >
                 <SettingsIcon className="w-5 h-5" />
@@ -317,12 +299,14 @@ const App: React.FC = () => {
 
               {/* Auth: Google Sign-In or User Profile */}
               {authLoading ? (
-                <div className="w-8 h-8 rounded-full bg-slate-800 animate-pulse" />
+                <div className="w-10 h-10 rounded-full bg-white/50 animate-pulse" />
               ) : user ? (
                 <UserProfileMenu user={user} onSignOut={() => setUser(null)} />
               ) : (
-                <div ref={googleButtonRef} className="min-w-[120px]">
-                  {/* Google button will be rendered here by useEffect */}
+                <div className="p-[2px] rounded-full bg-gradient-to-r from-cute-pink to-cute-purple shadow-sm hover:shadow-md transition-all duration-300 hover:scale-105">
+                  <div className="bg-white rounded-full overflow-hidden min-w-[120px]">
+                    <CustomGoogleSignInButton width="100%" />
+                  </div>
                 </div>
               )}
             </div>
@@ -330,19 +314,19 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 py-8">
+      <main className="max-w-6xl mx-auto px-4 py-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
 
           {/* LEFT COLUMN: Inputs */}
           <div className="lg:col-span-5 space-y-6">
 
             {/* Image Uploader */}
-            <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-1 overflow-hidden">
+            <div className="bg-white/60 backdrop-blur-sm border border-white/60 rounded-3xl p-2 shadow-xl shadow-pink-100/50 transition-all duration-500 hover:shadow-2xl hover:shadow-pink-200/50 hover:scale-[1.01]">
               <div
-                className={`relative group aspect-[4/3] rounded-xl border-2 border-dashed transition-all duration-300 flex flex-col items-center justify-center
+                className={`relative group aspect-[4/3] rounded-2xl border-2 border-dashed transition-all duration-300 flex flex-col items-center justify-center overflow-hidden
                   ${selectedImage
-                    ? 'border-transparent bg-slate-950'
-                    : 'border-slate-700 bg-slate-800/30 hover:border-indigo-500/50 hover:bg-slate-800/50 cursor-pointer'
+                    ? 'border-transparent bg-white'
+                    : 'border-pink-200 bg-pink-50/30 hover:border-pink-300 hover:bg-pink-50/50 cursor-pointer'
                   }`}
                 onClick={() => !selectedImage && fileInputRef.current?.click()}
               >
@@ -355,18 +339,18 @@ const App: React.FC = () => {
                     />
                     <button
                       onClick={(e) => { e.stopPropagation(); clearAll(); }}
-                      className="absolute top-2 right-2 p-2 bg-slate-900/80 text-red-400 hover:text-red-300 rounded-lg backdrop-blur-sm border border-slate-700 transition-colors"
+                      className="absolute top-2 right-2 p-2 bg-white/80 text-red-400 hover:text-red-500 rounded-xl backdrop-blur-sm border border-white/50 shadow-sm transition-colors hover:shadow-md"
                     >
                       <TrashIcon className="w-4 h-4" />
                     </button>
                   </>
                 ) : (
                   <>
-                    <div className="w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                      <UploadIcon className="w-8 h-8 text-slate-400 group-hover:text-indigo-400" />
+                    <div className="w-20 h-20 rounded-full bg-white shadow-lg shadow-pink-100 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300">
+                      <UploadIcon className="w-8 h-8 text-pink-300 group-hover:text-pink-400 transition-colors" />
                     </div>
-                    <p className="text-slate-300 font-medium">Click to upload image</p>
-                    <p className="text-slate-500 text-sm mt-1">JPG, PNG supported</p>
+                    <p className="text-slate-600 font-bold text-lg">Click to upload image</p>
+                    <p className="text-slate-400 text-sm mt-1">JPG, PNG supported</p>
                   </>
                 )}
                 <input
@@ -380,26 +364,26 @@ const App: React.FC = () => {
             </div>
 
             {/* Controls */}
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-6">
+            <div className="bg-white/80 backdrop-blur-md border border-white/60 rounded-3xl p-6 space-y-6 shadow-xl shadow-purple-100/50">
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label className="block text-sm font-bold text-slate-600 mb-3 ml-1">
                   {mode === 'animate' ? 'Animation Description' : 'Edit Instructions'}
                 </label>
 
                 {mode === 'animate' && isAutoPrompt ? (
                   <div className="relative animate-in fade-in zoom-in-95 duration-200">
-                    <div className="w-full bg-indigo-950/30 border border-indigo-500/30 rounded-xl p-4 text-indigo-100 h-32 overflow-y-auto shadow-inner">
+                    <div className="w-full bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-100 rounded-2xl p-4 text-slate-600 h-32 overflow-y-auto shadow-inner">
                       <div className="flex items-center gap-2 mb-2 sticky top-0 bg-transparent">
-                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 text-xs font-semibold border border-indigo-500/30">
+                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/80 text-purple-500 text-xs font-bold border border-purple-100 shadow-sm">
                           <SparklesIcon className="w-3 h-3" /> AI Generated
                         </span>
                       </div>
-                      <p className="text-sm leading-relaxed opacity-90">{prompt}</p>
+                      <p className="text-sm leading-relaxed opacity-90 font-medium">{prompt}</p>
                     </div>
                     <div className="absolute top-3 right-3">
                       <button
                         onClick={() => setIsAutoPrompt(false)}
-                        className="px-3 py-1 bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-medium rounded-lg border border-slate-700 transition-all backdrop-blur-sm"
+                        className="px-3 py-1 bg-white/80 hover:bg-white text-slate-500 hover:text-purple-500 text-xs font-bold rounded-lg border border-white shadow-sm transition-all backdrop-blur-sm"
                       >
                         Edit
                       </button>
@@ -413,31 +397,31 @@ const App: React.FC = () => {
                       ? "Leave empty for AI auto-description, or describe the movement..."
                       : "E.g., Add a cyberpunk neon glow, remove background..."
                     }
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl p-4 text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all resize-none h-32"
+                    className="w-full bg-white border border-slate-200 rounded-2xl p-4 text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-pink-100 focus:border-pink-300 transition-all duration-300 focus:scale-[1.01] resize-none h-32 shadow-sm"
                   />
                 )}
               </div>
 
               {mode === 'animate' && (
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                  <label className="block text-sm font-bold text-slate-600 mb-3 ml-1">
                     Output Aspect Ratio
                   </label>
                   <div className="grid grid-cols-2 gap-3">
                     <button
                       onClick={() => setAspectRatio('16:9')}
-                      className={`py-3 px-4 rounded-xl border text-sm font-medium transition-all ${aspectRatio === '16:9'
-                        ? 'bg-indigo-600/10 border-indigo-500 text-indigo-400'
-                        : 'bg-slate-950 border-slate-700 text-slate-400 hover:border-slate-600'
+                      className={`py-3 px-4 rounded-xl border text-sm font-bold transition-all duration-300 hover:scale-105 active:scale-95 ${aspectRatio === '16:9'
+                        ? 'bg-pink-50 border-pink-200 text-pink-500 shadow-inner'
+                        : 'bg-white border-slate-100 text-slate-400 hover:border-pink-200 hover:text-pink-400'
                         }`}
                     >
                       Landscape (16:9)
                     </button>
                     <button
                       onClick={() => setAspectRatio('9:16')}
-                      className={`py-3 px-4 rounded-xl border text-sm font-medium transition-all ${aspectRatio === '9:16'
-                        ? 'bg-indigo-600/10 border-indigo-500 text-indigo-400'
-                        : 'bg-slate-950 border-slate-700 text-slate-400 hover:border-slate-600'
+                      className={`py-3 px-4 rounded-xl border text-sm font-bold transition-all duration-300 hover:scale-105 active:scale-95 ${aspectRatio === '9:16'
+                        ? 'bg-pink-50 border-pink-200 text-pink-500 shadow-inner'
+                        : 'bg-white border-slate-100 text-slate-400 hover:border-pink-200 hover:text-pink-400'
                         }`}
                     >
                       Portrait (9:16)
@@ -447,19 +431,19 @@ const App: React.FC = () => {
               )}
 
               {processing.error && (
-                <div className="p-4 bg-red-900/20 border border-red-900/50 rounded-xl flex items-start gap-3">
+                <div className="p-4 bg-red-50 border border-red-100 rounded-2xl flex items-start gap-3">
                   <AlertCircleIcon className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
-                  <p className="text-sm text-red-200">{processing.error}</p>
+                  <p className="text-sm text-red-600 font-medium">{processing.error}</p>
                 </div>
               )}
 
               <button
                 onClick={handleGenerateClick}
                 disabled={!selectedImage || processing.isLoading}
-                className={`w-full py-4 rounded-xl font-bold text-lg shadow-lg flex items-center justify-center gap-2 transition-all
+                className={`w-full py-4 rounded-2xl font-bold text-lg shadow-lg flex items-center justify-center gap-2 transition-all duration-300
                   ${!selectedImage || processing.isLoading
-                    ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                    : 'bg-indigo-600 hover:bg-indigo-500 text-white hover:shadow-indigo-500/25 active:scale-[0.99]'
+                    ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-cute-pink to-cute-purple text-white hover:shadow-pink-300/50 hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]'
                   }`}
               >
                 {processing.isLoading ? 'Processing...' : (
@@ -474,17 +458,17 @@ const App: React.FC = () => {
 
           {/* RIGHT COLUMN: Results */}
           <div className="lg:col-span-7">
-            <div className="h-full bg-slate-900 border border-slate-800 rounded-2xl p-1 overflow-hidden min-h-[500px] flex flex-col">
-              <div className="flex-1 bg-slate-950 rounded-xl flex items-center justify-center relative overflow-hidden">
+            <div className="h-full bg-white/60 backdrop-blur-md border border-white/60 rounded-3xl p-2 overflow-hidden min-h-[500px] flex flex-col shadow-xl shadow-blue-100/50">
+              <div className="flex-1 bg-white/50 rounded-2xl flex items-center justify-center relative overflow-hidden border-2 border-dashed border-white/50">
 
                 {/* Empty State */}
                 {!processing.isLoading && !resultImage && !resultVideo && (
-                  <div className="text-center p-8 opacity-40">
-                    <div className="w-24 h-24 bg-slate-900 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-800">
-                      {mode === 'animate' ? <VideoIcon className="w-10 h-10" /> : <WandIcon className="w-10 h-10" />}
+                  <div className="text-center p-8 opacity-60">
+                    <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-purple-100">
+                      {mode === 'animate' ? <VideoIcon className="w-10 h-10 text-purple-300" /> : <WandIcon className="w-10 h-10 text-purple-300" />}
                     </div>
-                    <p className="text-lg font-medium">Ready to create</p>
-                    <p className="text-sm">Upload an image and click Generate</p>
+                    <p className="text-xl font-bold text-slate-600">Ready to create magic</p>
+                    <p className="text-slate-400">Upload an image and click Generate</p>
                   </div>
                 )}
 
@@ -500,14 +484,14 @@ const App: React.FC = () => {
                 {!processing.isLoading && resultImage && (
                   <div className="w-full h-full flex flex-col animate-in zoom-in-95 duration-300">
                     <div className="flex-1 p-4 flex items-center justify-center">
-                      <img src={resultImage} alt="Edited Result" className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" />
+                      <img src={resultImage} alt="Edited Result" className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl shadow-purple-200/50" />
                     </div>
-                    <div className="p-4 bg-slate-900 border-t border-slate-800 flex justify-between items-center">
-                      <span className="text-sm text-slate-400">Enhanced Image Result</span>
+                    <div className="p-4 bg-white/80 backdrop-blur-md border-t border-white/50 flex justify-between items-center">
+                      <span className="text-sm text-slate-500 font-bold">Enhanced Image Result</span>
                       <a
                         href={resultImage}
                         download="edited-image.png"
-                        className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors"
+                        className="px-4 py-2 bg-white hover:bg-purple-50 text-slate-600 hover:text-purple-600 rounded-xl text-sm font-bold border border-slate-100 shadow-sm transition-all duration-300 hover:scale-105 active:scale-95"
                       >
                         Download Image
                       </a>
@@ -518,19 +502,19 @@ const App: React.FC = () => {
                 {/* Result: Video */}
                 {!processing.isLoading && resultVideo && (
                   <div className="w-full h-full flex flex-col animate-in zoom-in-95 duration-300">
-                    <div className="flex-1 bg-black flex items-center justify-center">
+                    <div className="flex-1 bg-black/5 flex items-center justify-center rounded-t-2xl overflow-hidden">
                       <video
                         src={resultVideo}
                         controls
                         loop
                         autoPlay
-                        className="max-w-full max-h-full"
+                        className="max-w-full max-h-full shadow-2xl"
                         style={{ aspectRatio: aspectRatio.replace(':', '/') }}
                       />
                     </div>
-                    <div className="p-4 bg-slate-900 border-t border-slate-800 flex justify-between items-center">
+                    <div className="p-4 bg-white/80 backdrop-blur-md border-t border-white/50 flex justify-between items-center">
                       <div className="flex flex-col">
-                        <span className="text-sm text-slate-300 font-medium">Video Generation Result</span>
+                        <span className="text-sm text-slate-600 font-bold">Video Generation Result</span>
                         {/* <span className="text-xs text-slate-500">Loop enabled</span> */}
                       </div>
                       <a
@@ -539,7 +523,7 @@ const App: React.FC = () => {
                         // but opening in new tab usually allows "Save Video As"
                         target="_blank"
                         rel="noreferrer"
-                        className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors"
+                        className="px-4 py-2 bg-white hover:bg-purple-50 text-slate-600 hover:text-purple-600 rounded-xl text-sm font-bold border border-slate-100 shadow-sm transition-all duration-300 hover:scale-105 active:scale-95"
                       >
                         Download Video
                       </a>

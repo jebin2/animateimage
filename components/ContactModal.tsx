@@ -62,24 +62,24 @@ const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) => {
             />
 
             {/* Modal */}
-            <div className="relative bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="relative bg-white border border-white/60 rounded-3xl shadow-2xl shadow-purple-100/50 max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-300">
                 {/* Header */}
-                <div className="flex-shrink-0 p-6 border-b border-slate-700 bg-gradient-to-r from-emerald-950/50 to-teal-950/50 rounded-t-2xl">
+                <div className="flex-shrink-0 p-6 border-b border-emerald-100 bg-gradient-to-r from-emerald-50/50 to-teal-50/50 rounded-t-3xl">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-emerald-500/20 rounded-xl flex items-center justify-center">
+                            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
                                 <MessageIcon className="w-5 h-5 text-emerald-400" />
                             </div>
                             <div>
-                                <h2 className="text-xl font-bold text-white">Contact Us</h2>
-                                <p className="text-sm text-slate-400">We'd love to hear from you</p>
+                                <h2 className="text-xl font-bold font-display text-slate-800">Contact Us</h2>
+                                <p className="text-sm text-slate-500 font-medium">We'd love to hear from you</p>
                             </div>
                         </div>
                         <button
                             onClick={handleClose}
-                            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-800 transition-colors"
+                            className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-white/50 transition-all duration-300 hover:rotate-90 text-slate-400 hover:text-slate-600"
                         >
-                            <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                             </svg>
                         </button>
@@ -87,29 +87,29 @@ const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) => {
                 </div>
 
                 {/* Content */}
-                <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6">
+                <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 bg-slate-50/50">
                     {/* Error State */}
                     {error && (
-                        <div className="flex items-center gap-3 p-4 mb-4 bg-red-950/30 border border-red-500/30 rounded-xl">
+                        <div className="flex items-center gap-3 p-4 mb-4 bg-red-50 border border-red-100 rounded-2xl">
                             <AlertCircleIcon className="w-5 h-5 text-red-400 flex-shrink-0" />
-                            <p className="text-red-300 text-sm">{error}</p>
+                            <p className="text-red-600 text-sm font-medium">{error}</p>
                         </div>
                     )}
 
                     {/* Success State */}
                     {successMessage && (
-                        <div className="flex items-center gap-3 p-4 mb-4 bg-green-950/30 border border-green-500/30 rounded-xl">
-                            <svg className="w-5 h-5 text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div className="flex items-center gap-3 p-4 mb-4 bg-green-50 border border-green-100 rounded-2xl">
+                            <svg className="w-5 h-5 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                             </svg>
-                            <p className="text-green-300 text-sm">{successMessage}</p>
+                            <p className="text-green-600 text-sm font-medium">{successMessage}</p>
                         </div>
                     )}
 
                     {/* Subject Field */}
                     <div className="mb-4">
-                        <label htmlFor="subject" className="block text-sm font-medium text-slate-300 mb-2">
-                            Subject <span className="text-slate-500">(optional)</span>
+                        <label htmlFor="subject" className="block text-sm font-bold text-slate-600 mb-2 ml-1">
+                            Subject <span className="text-slate-400 font-normal">(optional)</span>
                         </label>
                         <input
                             type="text"
@@ -118,13 +118,13 @@ const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) => {
                             onChange={(e) => setSubject(e.target.value)}
                             placeholder="What's this about?"
                             disabled={submitting}
-                            className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 transition-colors disabled:opacity-50"
+                            className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-300 focus:ring-4 focus:ring-emerald-100 transition-all duration-300 focus:scale-[1.01] disabled:opacity-50 shadow-sm"
                         />
                     </div>
 
                     {/* Message Field */}
                     <div className="mb-6">
-                        <label htmlFor="message" className="block text-sm font-medium text-slate-300 mb-2">
+                        <label htmlFor="message" className="block text-sm font-bold text-slate-600 mb-2 ml-1">
                             Message <span className="text-red-400">*</span>
                         </label>
                         <textarea
@@ -135,7 +135,7 @@ const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) => {
                             required
                             disabled={submitting}
                             rows={5}
-                            className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 transition-colors disabled:opacity-50 resize-none"
+                            className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-300 focus:ring-4 focus:ring-emerald-100 transition-all duration-300 focus:scale-[1.01] disabled:opacity-50 resize-none shadow-sm"
                         />
                     </div>
 
@@ -143,7 +143,7 @@ const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) => {
                     <button
                         type="submit"
                         disabled={submitting || !message.trim()}
-                        className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-medium rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-400 to-teal-400 hover:shadow-lg hover:shadow-emerald-200 text-white font-bold rounded-2xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {submitting ? (
                             <>
@@ -160,8 +160,8 @@ const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) => {
                 </form>
 
                 {/* Footer */}
-                <div className="flex-shrink-0 px-6 py-4 border-t border-slate-700/50 bg-slate-800/30 rounded-b-2xl">
-                    <p className="text-xs text-slate-500 text-center">
+                <div className="flex-shrink-0 px-6 py-4 border-t border-slate-100 bg-white rounded-b-3xl">
+                    <p className="text-xs text-slate-400 text-center font-medium">
                         We typically respond within 24-48 hours.
                     </p>
                 </div>

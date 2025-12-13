@@ -7,12 +7,45 @@
   <title>AnimateImage</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&family=Quicksand:wght@500;700&display=swap"
+    rel="stylesheet">
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Nunito', 'sans-serif'],
+            display: ['Quicksand', 'sans-serif'],
+          },
+          colors: {
+            cute: {
+              pink: '#FFD1DC',
+              purple: '#E0BBE4',
+              blue: '#D4F0F0',
+              yellow: '#FDFD96',
+              text: '#4A4A4A',
+            }
+          }
+        }
+      }
+    }
+  </script>
   <style>
     body {
-      font-family: 'Inter', sans-serif;
+      font-family: 'Nunito', sans-serif;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6,
+    .font-display {
+      font-family: 'Quicksand', sans-serif;
     }
 
     /* Custom scrollbar for webkit */
@@ -46,7 +79,8 @@
 </script>
 </head>
 
-<body class="bg-slate-950 text-slate-100 antialiased selection:bg-indigo-500 selection:text-white">
+<body
+  class="bg-gradient-to-br from-pink-50 via-white to-purple-50 text-slate-700 antialiased selection:bg-pink-200 selection:text-pink-900 min-h-screen">
   <div id="root"></div>
   <script type="module" src="./index.tsx"></script>
 </body>

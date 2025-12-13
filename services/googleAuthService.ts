@@ -428,7 +428,7 @@ export function renderGoogleButton(container: HTMLElement, config?: Partial<Goog
 
     window.google.accounts.id.renderButton(container, {
         type: 'standard',
-        theme: 'filled_black',
+        theme: 'outline',
         size: 'large',
         text: 'signin_with',
         shape: 'pill',

@@ -4,6 +4,7 @@
 import { encryptData } from './encryptionService';
 import { getOrCreateUserId, getUserId } from './userIdService';
 import { storeEvent, getAllEvents, clearAllEvents } from './eventService';
+import { getAccessToken } from './googleAuthService';
 
 interface UsageEvent {
     type: 'generate_click' | 'generate_success' | 'generate_failure';
@@ -66,7 +67,22 @@ async function syncUsageToServer(): Promise<void> {
 
         // Send to server (fire and forget)
         const url = `${SYNC_URL}?userid=${currentUserId}${encryptedData}`;
-        fetch(url, { method: 'GET', mode: 'no-cors' }).catch(() => { });
+
+        // Check if user is authenticated and add auth header if available
+        const accessToken = await getAccessToken();
+
+        if (accessToken) {
+            // Authenticated request with CORS mode
+            fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`
+                }
+            }).catch(() => { });
+        } else {
+            // Unauthenticated request with no-cors mode
+            fetch(url, { method: 'GET', mode: 'no-cors' }).catch(() => { });
+        }
 
         // Clear events after sending
         await clearAllEvents();

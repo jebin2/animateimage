@@ -80,13 +80,13 @@ const UserAvatar: React.FC<UserAvatarProps> = ({
     // Generate a consistent color based on email
     const getAvatarColor = () => {
         const colors = [
-            'bg-indigo-600',
-            'bg-purple-600',
-            'bg-pink-600',
-            'bg-blue-600',
-            'bg-teal-600',
-            'bg-emerald-600',
-            'bg-orange-600'
+            'bg-indigo-400',
+            'bg-purple-400',
+            'bg-pink-400',
+            'bg-blue-400',
+            'bg-teal-400',
+            'bg-emerald-400',
+            'bg-orange-400'
         ];
         const index = email.charCodeAt(0) % colors.length;
         return colors[index];
@@ -117,7 +117,7 @@ const UserAvatar: React.FC<UserAvatarProps> = ({
             <img
                 src={imageSrc}
                 alt={name || email}
-                className={`${sizeClasses[size]} rounded-full border-2 border-slate-700 ${className}`}
+                className={`${sizeClasses[size]} rounded-full border-2 border-white shadow-sm ${className}`}
                 onError={handleError}
             />
         );
@@ -125,7 +125,7 @@ const UserAvatar: React.FC<UserAvatarProps> = ({
 
     // Fallback to initials
     return (
-        <div className={`${sizeClasses[size]} rounded-full ${getAvatarColor()} flex items-center justify-center text-white font-medium border-2 border-slate-700 ${className}`}>
+        <div className={`${sizeClasses[size]} rounded-full ${getAvatarColor()} flex items-center justify-center text-white font-bold border-2 border-white shadow-sm ${className}`}>
             {getInitials()}
         </div>
     );
