@@ -50,12 +50,7 @@ export function showToast(config: ToastConfig): string {
     toasts = [...toasts, toast];
     notifyListeners();
 
-    // Auto-dismiss if duration > 0
-    if (duration > 0) {
-        setTimeout(() => {
-            hideToast(id);
-        }, duration);
-    }
+    // Note: Auto-dismiss is handled by ToastContainer to support pause on hover
 
     return id;
 }

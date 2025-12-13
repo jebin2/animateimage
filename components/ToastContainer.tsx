@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Toast, onToastChange, hideToast } from '../services/toastService';
 
@@ -73,15 +73,35 @@ interface ToastItemProps {
 
 const ToastItem: React.FC<ToastItemProps> = ({ toast, onClose, index }) => {
     const [isExiting, setIsExiting] = useState(false);
+    const [isHovered, setIsHovered] = useState(false);
+    const timerRef = useRef<NodeJS.Timeout | null>(null);
     const style = toastStyles[toast.type];
     const IconComponent = style.IconComponent;
 
     const handleClose = () => {
+        if (timerRef.current) {
+            clearTimeout(timerRef.current);
+        }
         setIsExiting(true);
         setTimeout(() => {
             onClose();
         }, 200);
     };
+
+    // Auto-dismiss timer with pause on hover
+    useEffect(() => {
+        if (toast.duration > 0 && !isHovered) {
+            timerRef.current = setTimeout(() => {
+                handleClose();
+            }, toast.duration);
+        }
+
+        return () => {
+            if (timerRef.current) {
+                clearTimeout(timerRef.current);
+            }
+        };
+    }, [isHovered, toast.duration]);
 
     return (
         <div
@@ -96,12 +116,14 @@ const ToastItem: React.FC<ToastItemProps> = ({ toast, onClose, index }) => {
                 minWidth: '280px',
                 maxWidth: '400px'
             }}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
         >
             <IconComponent className={`w-5 h-5 flex-shrink-0 ${style.icon}`} />
-            <p className={`flex-1 text-sm font-medium ${style.text}`}>{toast.message}</p>
+            <p className={`flex-1 min-w-0 text-sm font-medium break-words ${style.text}`}>{toast.message}</p>
             <button
                 onClick={handleClose}
-                className={`p-1 rounded-lg hover:bg-white/10 transition-colors ${style.icon}`}
+                className={`p-1 flex-shrink-0 rounded-lg hover:bg-white/10 transition-colors ${style.icon}`}
                 aria-label="Dismiss"
             >
                 <CloseIcon className="w-4 h-4" />
