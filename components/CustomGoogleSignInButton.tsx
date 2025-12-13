@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { renderGoogleButton } from '../services/googleAuthService';
 import { GoogleIcon } from './Icons';
 
@@ -9,6 +9,7 @@ interface CustomGoogleSignInButtonProps {
 const CustomGoogleSignInButton: React.FC<CustomGoogleSignInButtonProps> = ({ width = '100%' }) => {
     const googleButtonRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
+    const [isReady, setIsReady] = useState(false);
 
     useEffect(() => {
         let attempts = 0;
@@ -42,6 +43,8 @@ const CustomGoogleSignInButton: React.FC<CustomGoogleSignInButtonProps> = ({ wid
                     width: containerWidth,
                     shape: 'pill'
                 });
+                // Mark as ready only after successful render
+                setIsReady(true);
             } catch (e) {
                 console.error('Failed to render Google button:', e);
             }
@@ -67,10 +70,10 @@ const CustomGoogleSignInButton: React.FC<CustomGoogleSignInButtonProps> = ({ wid
                 </span>
             </div>
 
-            {/* Actual Google Button (Invisible Overlay) */}
+            {/* Actual Google Button (Invisible Overlay) - only clickable when ready */}
             <div
                 ref={googleButtonRef}
-                className="absolute inset-0 opacity-0 z-10 overflow-hidden"
+                className={`absolute inset-0 opacity-0 z-10 overflow-hidden ${isReady ? '' : 'pointer-events-none'}`}
                 style={{ transform: 'scale(1.05)' }} // Slight scale to ensure coverage
             />
         </div>
