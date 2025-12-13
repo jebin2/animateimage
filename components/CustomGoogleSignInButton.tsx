@@ -11,7 +11,27 @@ const CustomGoogleSignInButton: React.FC<CustomGoogleSignInButtonProps> = ({ wid
     const containerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        if (googleButtonRef.current && containerRef.current) {
+        let attempts = 0;
+        const maxAttempts = 20; // 20 attempts * 500ms = 10 seconds max
+        let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+        const tryRenderButton = () => {
+            if (!googleButtonRef.current || !containerRef.current) {
+                return;
+            }
+
+            // Check if Google library is loaded
+            if (!window.google?.accounts?.id) {
+                attempts++;
+                if (attempts < maxAttempts) {
+                    // Retry after 500ms
+                    timeoutId = setTimeout(tryRenderButton, 500);
+                } else {
+                    console.error('Google Identity Services failed to load after maximum attempts');
+                }
+                return;
+            }
+
             // Calculate width to match container
             const containerWidth = containerRef.current.offsetWidth;
 
@@ -25,7 +45,16 @@ const CustomGoogleSignInButton: React.FC<CustomGoogleSignInButtonProps> = ({ wid
             } catch (e) {
                 console.error('Failed to render Google button:', e);
             }
-        }
+        };
+
+        tryRenderButton();
+
+        // Cleanup on unmount
+        return () => {
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+            }
+        };
     }, []);
 
     return (
