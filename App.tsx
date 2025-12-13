@@ -332,7 +332,7 @@ const App: React.FC = () => {
           <div className="lg:col-span-5 flex flex-col gap-4 lg:gap-5">
 
             {/* Image Uploader */}
-            <div className="bg-white/60 backdrop-blur-sm border border-white/60 rounded-2xl lg:rounded-3xl p-2 shadow-xl shadow-pink-100/50 transition-all duration-500 hover:shadow-2xl hover:shadow-pink-200/50 hover:scale-[1.01] flex-1 flex flex-col">
+            <div className="bg-white/60 backdrop-blur-sm border border-white/60 rounded-2xl lg:rounded-3xl p-2 shadow-xl shadow-pink-100/50 transition-all duration-500 hover:shadow-2xl hover:shadow-pink-200/50 hover:scale-[1.01] flex-1 flex flex-col min-h-0">
               <div
                 className={`relative group flex-1 min-h-[180px] rounded-xl lg:rounded-2xl border-2 border-dashed transition-all duration-300 flex flex-col items-center justify-center overflow-hidden
                   ${selectedImage
@@ -346,11 +346,11 @@ const App: React.FC = () => {
                     <img
                       src={`data:${mimeType};base64,${selectedImage}`}
                       alt="Selected"
-                      className="w-full h-full object-contain rounded-xl"
+                      className="absolute inset-0 w-full h-full object-contain rounded-xl"
                     />
                     <button
                       onClick={(e) => { e.stopPropagation(); clearAll(); }}
-                      className="absolute top-2 right-2 p-2 bg-white/80 text-red-400 hover:text-red-500 rounded-xl backdrop-blur-sm border border-white/50 shadow-sm transition-colors hover:shadow-md"
+                      className="absolute top-2 right-2 p-2 bg-white/80 text-red-400 hover:text-red-500 rounded-xl backdrop-blur-sm border border-white/50 shadow-sm transition-colors hover:shadow-md z-10"
                     >
                       <TrashIcon className="w-4 h-4" />
                     </button>
