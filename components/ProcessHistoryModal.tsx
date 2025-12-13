@@ -198,7 +198,7 @@ const ProcessHistoryModal: React.FC<ProcessHistoryModalProps> = ({ isOpen, onClo
                                                 </span>
                                             </div>
                                             {job.prompt && (
-                                                <p className="text-sm text-slate-600 font-medium mb-2 line-clamp-2">
+                                                <p className="text-sm text-slate-600 font-medium mb-2 line-clamp-2" title={job.prompt}>
                                                     "{job.prompt}"
                                                 </p>
                                             )}
