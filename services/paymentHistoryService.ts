@@ -141,14 +141,14 @@ export function formatAmount(amountPaise: number, currency: string = 'INR'): str
 export function getStatusColor(status: PaymentStatus): string {
     switch (status) {
         case 'paid':
-            return 'text-green-400 bg-green-950/30 border-green-500/30';
+            return 'text-green-700 bg-green-50 border-green-200 border';
         case 'failed':
-            return 'text-red-400 bg-red-950/30 border-red-500/30';
+            return 'text-red-700 bg-red-50 border-red-200 border';
         case 'refunded':
-            return 'text-amber-400 bg-amber-950/30 border-amber-500/30';
+            return 'text-amber-700 bg-amber-50 border-amber-200 border';
         case 'created':
         default:
-            return 'text-slate-400 bg-slate-800/30 border-slate-600/30';
+            return 'text-slate-700 bg-slate-50 border-slate-200 border';
     }
 }
 

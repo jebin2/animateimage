@@ -5,6 +5,7 @@ import UserAvatar, { clearCachedAvatar } from './UserAvatar';
 import BuyCreditsModal from './BuyCreditsModal';
 import ContactModal from './ContactModal';
 import PaymentHistoryModal from './PaymentHistoryModal';
+import ProcessHistoryModal from './ProcessHistoryModal';
 
 interface UserProfileMenuProps {
     user: GoogleUser;
@@ -17,6 +18,7 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ user, onSignOut, onCr
     const [showBuyCredits, setShowBuyCredits] = useState(false);
     const [showContact, setShowContact] = useState(false);
     const [showPaymentHistory, setShowPaymentHistory] = useState(false);
+    const [showProcessHistory, setShowProcessHistory] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
 
     // Close menu when clicking outside
@@ -50,6 +52,11 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ user, onSignOut, onCr
 
     const handlePaymentHistoryClick = () => {
         setShowPaymentHistory(true);
+        setIsOpen(false);
+    };
+
+    const handleProcessHistoryClick = () => {
+        setShowProcessHistory(true);
         setIsOpen(false);
     };
 
@@ -132,6 +139,17 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ user, onSignOut, onCr
                                 <HistoryIcon className="w-4 h-4" />
                                 <span className="text-xs sm:text-sm">Payment History</span>
                             </button>
+                            <button
+                                onClick={handleProcessHistoryClick}
+                                className="w-full flex items-center gap-3 px-3 py-2 sm:py-2.5 text-left text-slate-600 hover:bg-purple-50 hover:text-purple-600 rounded-xl transition-all duration-300 hover:translate-x-1 font-medium"
+                            >
+                                <div className="w-4 h-4 flex items-center justify-center">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                                    </svg>
+                                </div>
+                                <span className="text-xs sm:text-sm">Process History</span>
+                            </button>
                             <div className="my-1 border-t border-slate-100" />
                             <button
                                 onClick={handleSignOut}
@@ -163,6 +181,12 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ user, onSignOut, onCr
             <PaymentHistoryModal
                 isOpen={showPaymentHistory}
                 onClose={() => setShowPaymentHistory(false)}
+            />
+
+            {/* Process History Modal */}
+            <ProcessHistoryModal
+                isOpen={showProcessHistory}
+                onClose={() => setShowProcessHistory(false)}
             />
         </>
     );

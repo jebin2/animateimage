@@ -8,6 +8,7 @@ import { configureCreditsService } from './creditsService';
 import { configureRazorpayService } from './razorpayService';
 import { configureContactService } from './contactService';
 import { configurePaymentHistoryService } from './paymentHistoryService';
+import { configureProcessHistoryService } from './processHistoryService';
 
 // API Base URL - production for builds, localhost for dev
 const API_BASE_URL = import.meta.env.DEV
@@ -69,6 +70,11 @@ export function initServices() {
 
     // Configure Payment History Service
     configurePaymentHistoryService({
+        apiBaseUrl: API_BASE_URL
+    });
+
+    // Configure Process History Service
+    configureProcessHistoryService({
         apiBaseUrl: API_BASE_URL
     });
 }
