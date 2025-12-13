@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { GoogleUser, signOut } from '../services/googleAuthService';
-import { LogOutIcon, CreditCardIcon, ChevronDownIcon, ShoppingCartIcon } from './Icons';
+import { LogOutIcon, CreditCardIcon, ChevronDownIcon, ShoppingCartIcon, MessageIcon, HistoryIcon } from './Icons';
 import UserAvatar, { clearCachedAvatar } from './UserAvatar';
 import BuyCreditsModal from './BuyCreditsModal';
+import ContactModal from './ContactModal';
+import PaymentHistoryModal from './PaymentHistoryModal';
 
 interface UserProfileMenuProps {
     user: GoogleUser;
@@ -13,6 +15,8 @@ interface UserProfileMenuProps {
 const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ user, onSignOut, onCreditsUpdated }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [showBuyCredits, setShowBuyCredits] = useState(false);
+    const [showContact, setShowContact] = useState(false);
+    const [showPaymentHistory, setShowPaymentHistory] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
 
     // Close menu when clicking outside
@@ -37,6 +41,16 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ user, onSignOut, onCr
     const handleBuyCreditsClick = () => {
         setShowBuyCredits(true);
         setIsOpen(false); // Close the dropdown when opening modal
+    };
+
+    const handleContactClick = () => {
+        setShowContact(true);
+        setIsOpen(false);
+    };
+
+    const handlePaymentHistoryClick = () => {
+        setShowPaymentHistory(true);
+        setIsOpen(false);
     };
 
     return (
@@ -105,6 +119,21 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ user, onSignOut, onCr
                         {/* Menu Items */}
                         <div className="p-2">
                             <button
+                                onClick={handleContactClick}
+                                className="w-full flex items-center gap-3 px-3 py-2.5 text-left text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition-colors"
+                            >
+                                <MessageIcon className="w-4 h-4" />
+                                <span className="text-sm font-medium">Contact Us</span>
+                            </button>
+                            <button
+                                onClick={handlePaymentHistoryClick}
+                                className="w-full flex items-center gap-3 px-3 py-2.5 text-left text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition-colors"
+                            >
+                                <HistoryIcon className="w-4 h-4" />
+                                <span className="text-sm font-medium">Payment History</span>
+                            </button>
+                            <div className="my-1 border-t border-slate-700/50" />
+                            <button
                                 onClick={handleSignOut}
                                 className="w-full flex items-center gap-3 px-3 py-2.5 text-left text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition-colors"
                             >
@@ -123,8 +152,21 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ user, onSignOut, onCr
                 user={user}
                 onCreditsUpdated={onCreditsUpdated}
             />
+
+            {/* Contact Modal */}
+            <ContactModal
+                isOpen={showContact}
+                onClose={() => setShowContact(false)}
+            />
+
+            {/* Payment History Modal */}
+            <PaymentHistoryModal
+                isOpen={showPaymentHistory}
+                onClose={() => setShowPaymentHistory(false)}
+            />
         </>
     );
 };
 
 export default UserProfileMenu;
+

@@ -6,6 +6,8 @@ import { configureGeminiService } from './geminiService';
 import { configureGoogleAuth } from './googleAuthService';
 import { configureCreditsService } from './creditsService';
 import { configureRazorpayService } from './razorpayService';
+import { configureContactService } from './contactService';
+import { configurePaymentHistoryService } from './paymentHistoryService';
 
 // API Base URL - production for builds, localhost for dev
 const API_BASE_URL = import.meta.env.DEV
@@ -59,4 +61,15 @@ export function initServices() {
     configureRazorpayService({
         apiBaseUrl: API_BASE_URL
     });
+
+    // Configure Contact Service
+    configureContactService({
+        apiBaseUrl: API_BASE_URL
+    });
+
+    // Configure Payment History Service
+    configurePaymentHistoryService({
+        apiBaseUrl: API_BASE_URL
+    });
 }
+
