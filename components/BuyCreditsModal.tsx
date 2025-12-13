@@ -21,6 +21,9 @@ const BuyCreditsModal: React.FC<BuyCreditsModalProps> = ({ isOpen, onClose, user
     // Fetch packages on mount
     useEffect(() => {
         if (isOpen) {
+            // Reset state when modal opens
+            setSuccessMessage(null);
+            setError(null);
             loadPackages();
         }
     }, [isOpen]);
@@ -49,7 +52,7 @@ const BuyCreditsModal: React.FC<BuyCreditsModalProps> = ({ isOpen, onClose, user
             userName: user.name || undefined,
             onSuccess: async (result: PaymentVerificationResult) => {
                 setPurchasing(null);
-                setSuccessMessage(`Successfully added ${result.credits_added} credits! New balance: ${result.new_balance}`);
+                setSuccessMessage(`Success, New balance: ${result.new_balance}`);
 
                 // Refresh user info to update credits display
                 await fetchUserInfo();
