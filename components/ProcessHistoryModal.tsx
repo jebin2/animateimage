@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import {
     getProcessHistory,
+    deleteJob,
     Job,
     getJobStatusColor,
     formatDate
 } from '../services/processHistoryService';
-import { HistoryIcon, AlertCircleIcon, VideoIcon, WandIcon } from './Icons';
+import { videoStorageService } from '../services/videoStorageService';
+import { HistoryIcon, AlertCircleIcon, VideoIcon, WandIcon, TrashIcon, RefreshIcon, DownloadIcon } from './Icons';
 
 interface ProcessHistoryModalProps {
     isOpen: boolean;
@@ -20,6 +22,7 @@ const ProcessHistoryModal: React.FC<ProcessHistoryModalProps> = ({ isOpen, onClo
     const [page, setPage] = useState(1);
     const [totalCount, setTotalCount] = useState(0);
     const [limit] = useState(10);
+    const [downloadingJobId, setDownloadingJobId] = useState<string | null>(null);
 
     useEffect(() => {
         if (isOpen) {
@@ -42,6 +45,51 @@ const ProcessHistoryModal: React.FC<ProcessHistoryModalProps> = ({ isOpen, onClo
         }
 
         setLoading(false);
+    };
+
+    const handleRefresh = () => {
+        loadHistory(page);
+    };
+
+    const handleDelete = async (jobId: string) => {
+        if (!confirm('Are you sure you want to delete this job?')) return;
+
+        const result = await deleteJob(jobId);
+        if (result.success) {
+            // Also delete from local storage if exists
+            await videoStorageService.deleteVideo(jobId);
+            loadHistory(page);
+        } else {
+            alert(result.error || 'Failed to delete job');
+        }
+    };
+
+    const handleDownload = async (jobId: string) => {
+        setDownloadingJobId(jobId);
+        try {
+            // 1. Check if we have it locally
+            let url = await videoStorageService.getVideoUrl(jobId);
+
+            // 2. If not, download and store it
+            if (!url) {
+                await videoStorageService.downloadAndStore(jobId);
+                url = await videoStorageService.getVideoUrl(jobId);
+            }
+
+            // 3. Trigger browser download
+            if (url) {
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `video-${jobId}.mp4`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            }
+        } catch (err: any) {
+            alert(err.message || 'Failed to download video');
+        } finally {
+            setDownloadingJobId(null);
+        }
     };
 
     const totalPages = Math.ceil(totalCount / limit);
@@ -170,18 +218,45 @@ const ProcessHistoryModal: React.FC<ProcessHistoryModalProps> = ({ isOpen, onClo
                                                 </p>
                                             )}
                                         </div>
-                                        {job.status === 'completed' && job.download_url && (
-                                            <div className="flex-shrink-0">
-                                                <a
-                                                    href={job.download_url}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="flex items-center gap-1 px-3 py-1.5 bg-violet-50 text-violet-600 hover:bg-violet-100 rounded-lg text-xs font-bold transition-colors"
+
+                                        <div className="flex items-center gap-2 flex-shrink-0">
+                                            {/* Download Button for Completed Video Jobs */}
+                                            {job.status === 'completed' && job.job_type === 'video' && (
+                                                <button
+                                                    onClick={() => handleDownload(job.job_id)}
+                                                    disabled={downloadingJobId === job.job_id}
+                                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors border bg-violet-50 text-violet-600 hover:bg-violet-100 border-violet-100"
+                                                    title="Download Video"
                                                 >
+                                                    {downloadingJobId === job.job_id ? (
+                                                        <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                                                    ) : (
+                                                        <DownloadIcon className="w-3.5 h-3.5" />
+                                                    )}
                                                     Download
-                                                </a>
-                                            </div>
-                                        )}
+                                                </button>
+                                            )}
+
+                                            {/* Refresh Button for Processing Jobs */}
+                                            {job.status === 'processing' && (
+                                                <button
+                                                    onClick={handleRefresh}
+                                                    className="p-2 text-blue-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                    title="Refresh Status"
+                                                >
+                                                    <RefreshIcon className="w-4 h-4" />
+                                                </button>
+                                            )}
+
+                                            {/* Delete Button for All Statuses */}
+                                            <button
+                                                onClick={() => handleDelete(job.job_id)}
+                                                className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                title="Delete Job"
+                                            >
+                                                <TrashIcon className="w-4 h-4" />
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             ))}

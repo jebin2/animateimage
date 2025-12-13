@@ -290,7 +290,7 @@ export async function generateVideo(
   mimeType: string,
   prompt: string,
   options: GeminiOptions = {}
-): Promise<string> {
+): Promise<{ url: string; jobId?: string }> {
   const aspectRatio = options.aspectRatio || '16:9';
   const resolution = options.resolution || '720p';
   const numberOfVideos = options.numberOfVideos || 1;
@@ -337,7 +337,7 @@ export async function generateVideo(
     }
 
     options.onStatus?.('Done!');
-    return `${videoUri}&key=${options.apiKey}`;
+    return { url: `${videoUri}&key=${options.apiKey}` };
   } else {
     // SERVER MODE - Job queue with polling
     options.onStatus?.('Submitting to server...');
@@ -354,7 +354,8 @@ export async function generateVideo(
 
     // Download video and return blob URL
     options.onStatus?.('Downloading video...');
-    return await downloadServerVideo(job.job_id);
+    const url = await downloadServerVideo(job.job_id);
+    return { url, jobId: job.job_id };
   }
 }
 

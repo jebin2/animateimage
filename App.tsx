@@ -2,7 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { AppMode, ProcessingState, AspectRatio } from './types';
 import { editImage, generateVideo, generateAnimationPrompt, GeminiOptions } from './services/geminiService';
 import { initUsage, recordUsage } from './services/usageService';
-import { UploadIcon, VideoIcon, WandIcon, TrashIcon, AlertCircleIcon, SparklesIcon, SettingsIcon, HeartIcon } from './components/Icons';
+import { UploadIcon, VideoIcon, WandIcon, TrashIcon, AlertCircleIcon, SparklesIcon, SettingsIcon, HeartIcon, DownloadIcon } from './components/Icons';
+import { videoStorageService } from './services/videoStorageService';
 import CustomGoogleSignInButton from './components/CustomGoogleSignInButton';
 import LoadingSpinner from './components/LoadingSpinner';
 import ApiKeyModal from './components/ApiKeyModal';
@@ -32,6 +33,8 @@ const App: React.FC = () => {
 
   const [resultImage, setResultImage] = useState<string | null>(null);
   const [resultVideo, setResultVideo] = useState<string | null>(null);
+  const [currentJobId, setCurrentJobId] = useState<string | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Auth state
@@ -77,7 +80,9 @@ const App: React.FC = () => {
   const executeGeneration = async (options: GeminiOptions) => {
     // Reset previous results
     setResultImage(null);
+    setResultImage(null);
     setResultVideo(null);
+    setCurrentJobId(null);
     setProcessing({ isLoading: true, statusMessage: 'Initializing...' });
     setModalError('');
 
@@ -111,12 +116,15 @@ const App: React.FC = () => {
           }
         }
 
-        const videoUrl = await generateVideo(selectedImage!, mimeType, finalPrompt, {
+        const { url, jobId } = await generateVideo(selectedImage!, mimeType, finalPrompt, {
           ...options,
           aspectRatio,
           onStatus
         });
-        setResultVideo(videoUrl);
+        setResultVideo(url);
+        if (jobId) {
+          setCurrentJobId(jobId);
+        }
         recordUsage('generate_success', mode).catch(console.error);
         setProcessing({ isLoading: false, statusMessage: 'Done!' });
         // Credits are updated automatically from API response in geminiService
@@ -239,7 +247,9 @@ const App: React.FC = () => {
     setSelectedImage(null);
     setMimeType('');
     setResultImage(null);
+    setResultImage(null);
     setResultVideo(null);
+    setCurrentJobId(null);
     setPrompt('');
     setIsAutoPrompt(false);
     setProcessing({ isLoading: false, statusMessage: '' });
@@ -537,18 +547,77 @@ const App: React.FC = () => {
                     <div className="p-4 bg-white/80 backdrop-blur-md border-t border-white/50 flex justify-between items-center">
                       <div className="flex flex-col">
                         <span className="text-sm text-slate-600 font-bold">Video Generation Result</span>
-                        {/* <span className="text-xs text-slate-500">Loop enabled</span> */}
                       </div>
-                      <a
-                        href={resultVideo}
-                        // Note: Direct download might be blocked by CORS depending on browser/security,
-                        // but opening in new tab usually allows "Save Video As"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="px-4 py-2 bg-white hover:bg-purple-50 text-slate-600 hover:text-purple-600 rounded-xl text-sm font-bold border border-slate-100 shadow-sm transition-all duration-300 hover:scale-105 active:scale-95"
-                      >
-                        Download Video
-                      </a>
+
+                      <div className="flex items-center gap-2">
+                        {/* Delete Button */}
+                        {currentJobId && (
+                          <button
+                            onClick={async () => {
+                              if (!confirm('Are you sure you want to delete this video?')) return;
+                              await videoStorageService.deleteVideo(currentJobId);
+                              // Also call API to delete job if needed, but for now just clear UI
+                              setResultVideo(null);
+                              setCurrentJobId(null);
+                            }}
+                            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
+                            title="Delete Video"
+                          >
+                            <TrashIcon className="w-5 h-5" />
+                          </button>
+                        )}
+
+                        {/* Download Button */}
+                        <button
+                          onClick={async () => {
+                            if (!currentJobId) {
+                              // Fallback for client-side mode or no jobId
+                              const a = document.createElement('a');
+                              a.href = resultVideo;
+                              a.download = 'generated-video.mp4';
+                              document.body.appendChild(a);
+                              a.click();
+                              document.body.removeChild(a);
+                              return;
+                            }
+
+                            setIsDownloading(true);
+                            try {
+                              // 1. Check local
+                              let url = await videoStorageService.getVideoUrl(currentJobId);
+
+                              // 2. Download and store if missing
+                              if (!url) {
+                                await videoStorageService.downloadAndStore(currentJobId);
+                                url = await videoStorageService.getVideoUrl(currentJobId);
+                              }
+
+                              // 3. Trigger download
+                              if (url) {
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = `video-${currentJobId}.mp4`;
+                                document.body.appendChild(a);
+                                a.click();
+                                document.body.removeChild(a);
+                              }
+                            } catch (err: any) {
+                              alert(err.message || 'Failed to download');
+                            } finally {
+                              setIsDownloading(false);
+                            }
+                          }}
+                          disabled={isDownloading}
+                          className="px-4 py-2 rounded-xl text-sm font-bold border shadow-sm transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-2 bg-white hover:bg-purple-50 text-slate-600 hover:text-purple-600 border-slate-100"
+                        >
+                          {isDownloading ? (
+                            <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <DownloadIcon className="w-4 h-4" />
+                          )}
+                          Download
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}

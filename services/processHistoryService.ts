@@ -104,6 +104,36 @@ export async function getProcessHistory(
     }
 }
 
+/**
+ * Delete a job
+ * @param jobId - ID of the job to delete
+ */
+export async function deleteJob(jobId: string): Promise<{ success: boolean; error?: string }> {
+    if (!CONFIG.apiBaseUrl) {
+        return { success: false, error: 'Service not configured' };
+    }
+
+    try {
+        const url = `${CONFIG.apiBaseUrl}/gemini/jobs/${jobId}`;
+        const response = await authenticatedFetch(url, {
+            method: 'DELETE'
+        });
+
+        if (response.status === 401) {
+            return { success: false, error: 'Authentication required' };
+        }
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ detail: 'Failed to delete job' }));
+            return { success: false, error: errorData.detail || 'Failed to delete job' };
+        }
+
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: 'Network error' };
+    }
+}
+
 // ==================== Helper Functions ====================
 
 /**
@@ -143,6 +173,7 @@ export function formatDate(dateString: string): string {
 export const processHistoryService = {
     configure: configureProcessHistoryService,
     getHistory: getProcessHistory,
+    deleteJob,
     getStatusColor: getJobStatusColor,
     formatDate
 };
