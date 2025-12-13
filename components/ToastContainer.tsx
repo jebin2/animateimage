@@ -75,6 +75,7 @@ const ToastItem: React.FC<ToastItemProps> = ({ toast, onClose, index }) => {
     const [isExiting, setIsExiting] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
+    const [timeRemaining, setTimeRemaining] = useState(toast.duration);
     const style = toastStyles[toast.type];
     const IconComponent = style.IconComponent;
 
@@ -90,10 +91,18 @@ const ToastItem: React.FC<ToastItemProps> = ({ toast, onClose, index }) => {
 
     // Auto-dismiss timer with pause on hover
     useEffect(() => {
-        if (toast.duration > 0 && !isHovered) {
+        if (toast.duration > 0 && !isHovered && timeRemaining > 0) {
+            const interval = 50; // Update every 50ms for smooth progress
             timerRef.current = setTimeout(() => {
-                handleClose();
-            }, toast.duration);
+                setTimeRemaining(prev => {
+                    const newTime = prev - interval;
+                    if (newTime <= 0) {
+                        handleClose();
+                        return 0;
+                    }
+                    return newTime;
+                });
+            }, interval);
         }
 
         return () => {
@@ -101,12 +110,23 @@ const ToastItem: React.FC<ToastItemProps> = ({ toast, onClose, index }) => {
                 clearTimeout(timerRef.current);
             }
         };
-    }, [isHovered, toast.duration]);
+    }, [isHovered, timeRemaining, toast.duration]);
+
+    // Calculate progress percentage
+    const progressPercent = toast.duration > 0 ? (timeRemaining / toast.duration) * 100 : 100;
+
+    // Progress bar color based on toast type
+    const progressColors = {
+        success: 'bg-emerald-400',
+        error: 'bg-red-400',
+        info: 'bg-blue-400',
+        warning: 'bg-amber-400'
+    };
 
     return (
         <div
             className={`
-                flex items-center gap-3 px-4 py-3 rounded-xl border shadow-2xl backdrop-blur-md
+                relative flex items-center gap-3 px-4 py-3 rounded-xl border shadow-2xl backdrop-blur-md overflow-hidden
                 ${style.bg} ${style.border}
                 transform transition-all duration-300 ease-out
                 ${isExiting ? 'opacity-0 -translate-y-2' : 'opacity-100 translate-y-0'}
@@ -128,9 +148,20 @@ const ToastItem: React.FC<ToastItemProps> = ({ toast, onClose, index }) => {
             >
                 <CloseIcon className="w-4 h-4" />
             </button>
+
+            {/* Progress bar timer */}
+            {toast.duration > 0 && (
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/10">
+                    <div
+                        className={`h-full ${progressColors[toast.type]} transition-all duration-75 ease-linear`}
+                        style={{ width: `${progressPercent}%` }}
+                    />
+                </div>
+            )}
         </div>
     );
 };
+
 
 const ToastContainer: React.FC = () => {
     const [toasts, setToasts] = useState<Toast[]>([]);
