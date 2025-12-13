@@ -254,10 +254,10 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-transparent text-slate-700 font-sans selection:bg-cute-pink selection:text-pink-900 relative">
+    <div className="min-h-screen max-h-screen bg-transparent text-slate-700 font-sans selection:bg-cute-pink selection:text-pink-900 relative flex flex-col">
       {/* Header */}
       <header className="border-b border-white/20 bg-white/60 backdrop-blur-md sticky top-0 z-50 shadow-sm">
-        <div className="max-w-6xl mx-auto px-2 sm:px-4 py-2 sm:py-0 sm:h-16 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2">
+        <div className="w-[95%] lg:w-[90%] mx-auto py-2 sm:py-0 sm:h-16 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2">
           {/* Logo - Hidden on very small screens, shown on sm+ */}
           <div className="flex items-center gap-2 shrink-0">
             <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-tr from-cute-pink to-cute-purple rounded-xl sm:rounded-2xl rotate-3 flex items-center justify-center shadow-lg shadow-pink-200/50 transition-all duration-500 hover:rotate-12 hover:scale-110">
@@ -325,16 +325,16 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 py-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <main className="w-[95%] lg:w-[90%] mx-auto py-4 lg:py-5 animate-in fade-in slide-in-from-bottom-8 duration-700 flex-1 flex flex-col">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6 flex-1">
 
           {/* LEFT COLUMN: Inputs */}
-          <div className="lg:col-span-5 space-y-6">
+          <div className="lg:col-span-5 flex flex-col gap-4 lg:gap-5">
 
             {/* Image Uploader */}
-            <div className="bg-white/60 backdrop-blur-sm border border-white/60 rounded-3xl p-2 shadow-xl shadow-pink-100/50 transition-all duration-500 hover:shadow-2xl hover:shadow-pink-200/50 hover:scale-[1.01]">
+            <div className="bg-white/60 backdrop-blur-sm border border-white/60 rounded-2xl lg:rounded-3xl p-2 shadow-xl shadow-pink-100/50 transition-all duration-500 hover:shadow-2xl hover:shadow-pink-200/50 hover:scale-[1.01] flex-1 flex flex-col">
               <div
-                className={`relative group aspect-[4/3] rounded-2xl border-2 border-dashed transition-all duration-300 flex flex-col items-center justify-center overflow-hidden
+                className={`relative group flex-1 min-h-[180px] rounded-xl lg:rounded-2xl border-2 border-dashed transition-all duration-300 flex flex-col items-center justify-center overflow-hidden
                   ${selectedImage
                     ? 'border-transparent bg-white'
                     : 'border-pink-200 bg-pink-50/30 hover:border-pink-300 hover:bg-pink-50/50 cursor-pointer'
@@ -357,10 +357,10 @@ const App: React.FC = () => {
                   </>
                 ) : (
                   <>
-                    <div className="w-20 h-20 rounded-full bg-white shadow-lg shadow-pink-100 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300">
-                      <UploadIcon className="w-8 h-8 text-pink-300 group-hover:text-pink-400 transition-colors" />
+                    <div className="w-16 h-16 lg:w-20 lg:h-20 rounded-full bg-white shadow-lg shadow-pink-100 flex items-center justify-center mb-3 lg:mb-4 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300">
+                      <UploadIcon className="w-7 h-7 lg:w-8 lg:h-8 text-pink-300 group-hover:text-pink-400 transition-colors" />
                     </div>
-                    <p className="text-slate-600 font-bold text-lg">Click to upload image</p>
+                    <p className="text-slate-600 font-bold text-base lg:text-lg">Click to upload image</p>
                     <p className="text-slate-400 text-sm mt-1">JPG, PNG supported</p>
                   </>
                 )}
@@ -375,15 +375,15 @@ const App: React.FC = () => {
             </div>
 
             {/* Controls */}
-            <div className="bg-white/80 backdrop-blur-md border border-white/60 rounded-3xl p-6 space-y-6 shadow-xl shadow-purple-100/50">
+            <div className="bg-white/80 backdrop-blur-md border border-white/60 rounded-2xl lg:rounded-3xl p-4 lg:p-5 space-y-4 lg:space-y-5 shadow-xl shadow-purple-100/50">
               <div>
-                <label className="block text-sm font-bold text-slate-600 mb-3 ml-1">
+                <label className="block text-sm font-bold text-slate-600 mb-2 lg:mb-3 ml-1">
                   {mode === 'animate' ? 'Animation Description' : 'Edit Instructions'}
                 </label>
 
                 {mode === 'animate' && isAutoPrompt ? (
                   <div className="relative animate-in fade-in zoom-in-95 duration-200">
-                    <div className="w-full bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-100 rounded-2xl p-4 text-slate-600 h-32 overflow-y-auto shadow-inner">
+                    <div className="w-full bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-100 rounded-xl lg:rounded-2xl p-3 lg:p-4 text-slate-600 h-24 lg:h-28 overflow-y-auto shadow-inner">
                       <div className="flex items-center gap-2 mb-2 sticky top-0 bg-transparent">
                         <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/80 text-purple-500 text-xs font-bold border border-purple-100 shadow-sm">
                           <SparklesIcon className="w-3 h-3" /> AI Generated
@@ -408,20 +408,20 @@ const App: React.FC = () => {
                       ? "Leave empty for AI auto-description, or describe the movement..."
                       : "E.g., Add a cyberpunk neon glow, remove background..."
                     }
-                    className="w-full bg-white border border-slate-200 rounded-2xl p-4 text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-pink-100 focus:border-pink-300 transition-all duration-300 focus:scale-[1.01] resize-none h-32 shadow-sm"
+                    className="w-full bg-white border border-slate-200 rounded-xl lg:rounded-2xl p-3 lg:p-4 text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-pink-100 focus:border-pink-300 transition-all duration-300 focus:scale-[1.01] resize-none h-24 lg:h-28 shadow-sm"
                   />
                 )}
               </div>
 
               {mode === 'animate' && (
                 <div>
-                  <label className="block text-sm font-bold text-slate-600 mb-3 ml-1">
+                  <label className="block text-sm font-bold text-slate-600 mb-2 lg:mb-3 ml-1">
                     Output Aspect Ratio
                   </label>
                   <div className="grid grid-cols-2 gap-3">
                     <button
                       onClick={() => setAspectRatio('16:9')}
-                      className={`py-3 px-4 rounded-xl border text-sm font-bold transition-all duration-300 hover:scale-105 active:scale-95 ${aspectRatio === '16:9'
+                      className={`py-2.5 lg:py-3 px-4 rounded-xl border text-sm font-bold transition-all duration-300 hover:scale-105 active:scale-95 ${aspectRatio === '16:9'
                         ? 'bg-pink-50 border-pink-200 text-pink-500 shadow-inner'
                         : 'bg-white border-slate-100 text-slate-400 hover:border-pink-200 hover:text-pink-400'
                         }`}
@@ -430,7 +430,7 @@ const App: React.FC = () => {
                     </button>
                     <button
                       onClick={() => setAspectRatio('9:16')}
-                      className={`py-3 px-4 rounded-xl border text-sm font-bold transition-all duration-300 hover:scale-105 active:scale-95 ${aspectRatio === '9:16'
+                      className={`py-2.5 lg:py-3 px-4 rounded-xl border text-sm font-bold transition-all duration-300 hover:scale-105 active:scale-95 ${aspectRatio === '9:16'
                         ? 'bg-pink-50 border-pink-200 text-pink-500 shadow-inner'
                         : 'bg-white border-slate-100 text-slate-400 hover:border-pink-200 hover:text-pink-400'
                         }`}
@@ -451,7 +451,7 @@ const App: React.FC = () => {
               <button
                 onClick={handleGenerateClick}
                 disabled={!selectedImage || processing.isLoading}
-                className={`w-full py-4 rounded-2xl font-bold text-lg shadow-lg flex items-center justify-center gap-2 transition-all duration-300
+                className={`w-full py-3.5 lg:py-4 rounded-xl lg:rounded-2xl font-bold text-base lg:text-lg shadow-lg flex items-center justify-center gap-2 transition-all duration-300
                   ${!selectedImage || processing.isLoading
                     ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
                     : 'bg-gradient-to-r from-cute-pink to-cute-purple text-white hover:shadow-pink-300/50 hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]'
@@ -468,18 +468,18 @@ const App: React.FC = () => {
           </div>
 
           {/* RIGHT COLUMN: Results */}
-          <div className="lg:col-span-7">
-            <div className="h-full bg-white/60 backdrop-blur-md border border-white/60 rounded-3xl p-2 overflow-hidden min-h-[500px] flex flex-col shadow-xl shadow-blue-100/50">
-              <div className="flex-1 bg-white/50 rounded-2xl flex items-center justify-center relative overflow-hidden border-2 border-dashed border-white/50">
+          <div className="lg:col-span-7 flex flex-col">
+            <div className="flex-1 bg-white/60 backdrop-blur-md border border-white/60 rounded-2xl lg:rounded-3xl p-2 overflow-hidden flex flex-col shadow-xl shadow-blue-100/50">
+              <div className="flex-1 bg-white/50 rounded-xl lg:rounded-2xl flex items-center justify-center relative overflow-hidden border-2 border-dashed border-white/50">
 
                 {/* Empty State */}
                 {!processing.isLoading && !resultImage && !resultVideo && (
-                  <div className="text-center p-8 opacity-60">
-                    <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-purple-100">
-                      {mode === 'animate' ? <VideoIcon className="w-10 h-10 text-purple-300" /> : <WandIcon className="w-10 h-10 text-purple-300" />}
+                  <div className="text-center p-6 lg:p-8 opacity-60">
+                    <div className="w-20 h-20 lg:w-24 lg:h-24 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-purple-100">
+                      {mode === 'animate' ? <VideoIcon className="w-8 h-8 lg:w-10 lg:h-10 text-purple-300" /> : <WandIcon className="w-8 h-8 lg:w-10 lg:h-10 text-purple-300" />}
                     </div>
-                    <p className="text-xl font-bold text-slate-600">Ready to create magic</p>
-                    <p className="text-slate-400">Upload an image and click Generate</p>
+                    <p className="text-lg lg:text-xl font-bold text-slate-600">Ready to create magic</p>
+                    <p className="text-slate-400 text-sm lg:text-base">Upload an image and click Generate</p>
                   </div>
                 )}
 
