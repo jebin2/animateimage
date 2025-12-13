@@ -6,7 +6,10 @@ import { UploadIcon, VideoIcon, WandIcon, TrashIcon, AlertCircleIcon, SparklesIc
 import LoadingSpinner from './components/LoadingSpinner';
 import ApiKeyModal from './components/ApiKeyModal';
 import UserProfileMenu from './components/UserProfileMenu';
+import ToastContainer from './components/ToastContainer';
+import { showError } from './services/toastService';
 import { GoogleUser, initializeAuth, initGoogleAuth, renderGoogleButton, onAuthStateChange, isAuthenticated } from './services/googleAuthService';
+
 
 const App: React.FC = () => {
   const [apiKey, setApiKey] = useState<string>('');
@@ -164,9 +167,8 @@ const App: React.FC = () => {
           friendlyMsg = "Model or resource not found. This usually means your API Key does not have access to the required models (Requires Paid Project).";
         }
 
-        setModalError(friendlyMsg);
-        setShowApiKeyModal(true);
-        setPendingAutoGenerate(true);
+        // Show error as toast instead of opening modal
+        showError(friendlyMsg);
       } else {
         setProcessing({
           isLoading: false,
@@ -558,6 +560,9 @@ const App: React.FC = () => {
         errorMessage={modalError}
         user={user}
       />
+
+      {/* Toast Notifications */}
+      <ToastContainer />
     </div>
   );
 };

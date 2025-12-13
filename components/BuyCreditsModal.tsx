@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { CreditPackage, getPackages, purchaseCredits, PaymentVerificationResult } from '../services/razorpayService';
 import { fetchUserInfo, GoogleUser } from '../services/googleAuthService';
+import { showSuccess, showError } from '../services/toastService';
 import { CreditCardIcon, AlertCircleIcon, SparklesIcon } from './Icons';
 
 interface BuyCreditsModalProps {
@@ -14,15 +15,13 @@ interface BuyCreditsModalProps {
 const BuyCreditsModal: React.FC<BuyCreditsModalProps> = ({ isOpen, onClose, user, onCreditsUpdated }) => {
     const [packages, setPackages] = useState<CreditPackage[]>([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null); // Only for package loading errors
     const [purchasing, setPurchasing] = useState<string | null>(null);
-    const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
     // Fetch packages on mount
     useEffect(() => {
         if (isOpen) {
             // Reset state when modal opens
-            setSuccessMessage(null);
             setError(null);
             loadPackages();
         }
@@ -43,7 +42,6 @@ const BuyCreditsModal: React.FC<BuyCreditsModalProps> = ({ isOpen, onClose, user
     const handlePurchase = async (pkg: CreditPackage) => {
         setPurchasing(pkg.id);
         setError(null);
-        setSuccessMessage(null);
 
         await purchaseCredits({
             packageId: pkg.id,
@@ -52,17 +50,20 @@ const BuyCreditsModal: React.FC<BuyCreditsModalProps> = ({ isOpen, onClose, user
             userName: user.name || undefined,
             onSuccess: async (result: PaymentVerificationResult) => {
                 setPurchasing(null);
-                setSuccessMessage(`Success, New balance: ${result.new_balance}`);
+                // Show success toast
+                showSuccess(`Success! New balance: ${result.new_balance} credits`);
 
                 // Refresh user info to update credits display
                 await fetchUserInfo();
                 onCreditsUpdated?.(result.new_balance);
 
-                // User can close the modal manually via the close icon
+                // Close the modal after successful purchase
+                onClose();
             },
             onError: (errorMsg: string) => {
                 setPurchasing(null);
-                setError(errorMsg);
+                // Show error toast
+                showError(errorMsg);
             },
             onDismiss: () => {
                 setPurchasing(null);
@@ -137,15 +138,7 @@ const BuyCreditsModal: React.FC<BuyCreditsModalProps> = ({ isOpen, onClose, user
                         </div>
                     )}
 
-                    {/* Success State */}
-                    {successMessage && (
-                        <div className="flex items-center gap-3 p-4 mb-4 bg-green-950/30 border border-green-500/30 rounded-xl">
-                            <svg className="w-5 h-5 text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                            </svg>
-                            <p className="text-green-300 text-sm">{successMessage}</p>
-                        </div>
-                    )}
+
 
                     {/* Package Cards */}
                     {!loading && packages.length > 0 && (
