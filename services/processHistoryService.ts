@@ -108,7 +108,13 @@ export async function getProcessHistory(
  * Delete a job
  * @param jobId - ID of the job to delete
  */
-export async function deleteJob(jobId: string): Promise<{ success: boolean; error?: string }> {
+export async function deleteJob(jobId: string): Promise<{
+    success: boolean;
+    error?: string;
+    message?: string;
+    credits_refunded?: number;
+    credits_remaining?: number;
+}> {
     if (!CONFIG.apiBaseUrl) {
         return { success: false, error: 'Service not configured' };
     }
@@ -128,7 +134,58 @@ export async function deleteJob(jobId: string): Promise<{ success: boolean; erro
             return { success: false, error: errorData.detail || 'Failed to delete job' };
         }
 
-        return { success: true };
+        const data = await response.json();
+        return {
+            success: true,
+            message: data.message,
+            credits_refunded: data.credits_refunded,
+            credits_remaining: data.credits_remaining
+        };
+    } catch (error) {
+        return { success: false, error: 'Network error' };
+    }
+}
+
+/**
+ * Get a single job status
+ * @param jobId - ID of the job to fetch
+ */
+export async function getJob(jobId: string): Promise<{ success: boolean; data?: Job; error?: string }> {
+    if (!CONFIG.apiBaseUrl) {
+        return { success: false, error: 'Service not configured' };
+    }
+
+    try {
+        const url = `${CONFIG.apiBaseUrl}/gemini/job/${jobId}`;
+        const response = await authenticatedFetch(url);
+
+        if (response.status === 401) {
+            return { success: false, error: 'Authentication required' };
+        }
+
+        if (!response.ok) {
+            return { success: false, error: 'Failed to fetch job' };
+        }
+
+        const data = await response.json();
+
+        // Map response to Job interface if necessary, or assume it matches
+        // The /gemini/job/{id} endpoint usually returns JobStatus which is similar but might need mapping
+        // Let's assume for now it returns enough info or we map it.
+        // Based on geminiService.ts, it returns: status, position, started_at, output, download_url, error, credits_remaining, prompt
+
+        const job: Job = {
+            job_id: jobId,
+            job_type: data.job_type || (data.output?.image ? 'image' : 'video'), // Infer type if missing
+            status: data.status,
+            created_at: data.created_at || data.started_at || new Date().toISOString(), // Fallback
+            completed_at: data.completed_at,
+            prompt: data.prompt,
+            download_url: data.download_url,
+            error_message: data.error
+        };
+
+        return { success: true, data: job };
     } catch (error) {
         return { success: false, error: 'Network error' };
     }
@@ -173,6 +230,7 @@ export function formatDate(dateString: string): string {
 export const processHistoryService = {
     configure: configureProcessHistoryService,
     getHistory: getProcessHistory,
+    getJob,
     deleteJob,
     getStatusColor: getJobStatusColor,
     formatDate

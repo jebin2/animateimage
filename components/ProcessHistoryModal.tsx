@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import {
     getProcessHistory,
+    getJob,
     deleteJob,
     Job,
     getJobStatusColor,
     formatDate
 } from '../services/processHistoryService';
+import { updateUserCredits } from '../services/googleAuthService';
 import { videoStorageService } from '../services/videoStorageService';
 import { HistoryIcon, AlertCircleIcon, VideoIcon, WandIcon, TrashIcon, RefreshIcon, DownloadIcon } from './Icons';
 
@@ -47,8 +49,22 @@ const ProcessHistoryModal: React.FC<ProcessHistoryModalProps> = ({ isOpen, onClo
         setLoading(false);
     };
 
-    const handleRefresh = () => {
-        loadHistory(page);
+    const handleRefresh = async (jobId?: string) => {
+        if (jobId) {
+            // Refresh specific job
+            const result = await getJob(jobId);
+            if (result.success && result.data) {
+                setJobs(prevJobs => prevJobs.map(job =>
+                    job.job_id === jobId ? result.data! : job
+                ));
+            } else {
+                // If failed to get single job, maybe fall back to full refresh or show error
+                // For now, let's just log it and maybe try full refresh
+                console.error('Failed to refresh job:', result.error);
+            }
+        } else {
+            loadHistory(page);
+        }
     };
 
     const handleDelete = async (jobId: string) => {
@@ -58,6 +74,22 @@ const ProcessHistoryModal: React.FC<ProcessHistoryModalProps> = ({ isOpen, onClo
         if (result.success) {
             // Also delete from local storage if exists
             await videoStorageService.deleteVideo(jobId);
+
+            // Show success message (especially for refunds)
+            if (result.message) {
+                // Ideally use a toast here, but alert is fine for now as per existing pattern
+                // or just rely on the UI update. 
+                // If there was a refund, let the user know
+                if (result.credits_refunded && result.credits_refunded > 0) {
+                    alert(`${result.message}\n(${result.credits_refunded} credits refunded)`);
+                }
+            }
+
+            // Update user credits if returned
+            if (result.credits_remaining !== undefined) {
+                updateUserCredits(result.credits_remaining).catch(console.error);
+            }
+
             loadHistory(page);
         } else {
             alert(result.error || 'Failed to delete job');
@@ -240,7 +272,7 @@ const ProcessHistoryModal: React.FC<ProcessHistoryModalProps> = ({ isOpen, onClo
                                             {/* Refresh Button for Processing Jobs */}
                                             {job.status === 'processing' && (
                                                 <button
-                                                    onClick={handleRefresh}
+                                                    onClick={() => handleRefresh(job.job_id)}
                                                     className="p-2 text-blue-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                                                     title="Refresh Status"
                                                 >
