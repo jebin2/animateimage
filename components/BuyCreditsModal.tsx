@@ -55,11 +55,7 @@ const BuyCreditsModal: React.FC<BuyCreditsModalProps> = ({ isOpen, onClose, user
                 await fetchUserInfo();
                 onCreditsUpdated?.(result.new_balance);
 
-                // Auto-close after success
-                setTimeout(() => {
-                    onClose();
-                    setSuccessMessage(null);
-                }, 3000);
+                // User can close the modal manually via the close icon
             },
             onError: (errorMsg: string) => {
                 setPurchasing(null);
