@@ -473,6 +473,14 @@ export async function signOut(): Promise<void> {
     }
 
     notifyAuthStateChange(null);
+
+    // Re-initialize Google Auth for future sign-ins
+    // This is needed because revoke() invalidates the session
+    try {
+        await initGoogleAuth();
+    } catch (e) {
+        console.error('Failed to re-initialize Google Auth after sign out:', e);
+    }
 }
 
 /**
