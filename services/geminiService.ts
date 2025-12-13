@@ -44,6 +44,7 @@ interface JobStatus {
   download_url?: string;
   error?: string;
   credits_remaining?: number;
+  prompt?: string;
 }
 
 // ==================== Configuration ====================
@@ -290,7 +291,7 @@ export async function generateVideo(
   mimeType: string,
   prompt: string,
   options: GeminiOptions = {}
-): Promise<{ url: string; jobId?: string }> {
+): Promise<{ url: string; jobId?: string; prompt?: string }> {
   const aspectRatio = options.aspectRatio || '16:9';
   const resolution = options.resolution || '720p';
   const numberOfVideos = options.numberOfVideos || 1;
@@ -355,7 +356,7 @@ export async function generateVideo(
     // Download video and return blob URL
     options.onStatus?.('Downloading video...');
     const url = await downloadServerVideo(job.job_id);
-    return { url, jobId: job.job_id };
+    return { url, jobId: job.job_id, prompt: result.prompt };
   }
 }
 

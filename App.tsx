@@ -116,7 +116,7 @@ const App: React.FC = () => {
           }
         }
 
-        const { url, jobId } = await generateVideo(selectedImage!, mimeType, finalPrompt, {
+        const { url, jobId, prompt: jobPrompt } = await generateVideo(selectedImage!, mimeType, finalPrompt, {
           ...options,
           aspectRatio,
           onStatus
@@ -124,6 +124,10 @@ const App: React.FC = () => {
         setResultVideo(url);
         if (jobId) {
           setCurrentJobId(jobId);
+        }
+        if (jobPrompt) {
+          setPrompt(jobPrompt);
+          setIsAutoPrompt(true); // Assuming if it comes back from server it might be auto-generated or refined
         }
         recordUsage('generate_success', mode).catch(console.error);
         setProcessing({ isLoading: false, statusMessage: 'Done!' });
