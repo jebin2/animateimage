@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { AppMode, ProcessingState, AspectRatio } from './types';
 import { editImage, generateVideo, generateAnimationPrompt, GeminiOptions } from './services/geminiService';
 import { initUsage, recordUsage } from './services/usageService';
-import { UploadIcon, VideoIcon, WandIcon, TrashIcon, AlertCircleIcon, SparklesIcon, SettingsIcon } from './components/Icons';
+import { UploadIcon, VideoIcon, WandIcon, TrashIcon, AlertCircleIcon, SparklesIcon, SettingsIcon, HeartIcon } from './components/Icons';
 import CustomGoogleSignInButton from './components/CustomGoogleSignInButton';
 import LoadingSpinner from './components/LoadingSpinner';
 import ApiKeyModal from './components/ApiKeyModal';
@@ -297,6 +297,17 @@ const App: React.FC = () => {
                 </span>
               </button>
             </div>
+
+            {/* Sponsor Button */}
+            <a
+              href="https://github.com/sponsors/jebin2?frequency=one-time&sponsor=jebin2"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-2 sm:p-2.5 text-pink-400 hover:text-pink-500 hover:bg-pink-50 rounded-full transition-all duration-300 shadow-sm hover:shadow-md hover:scale-110 shrink-0 group"
+              title="Sponsor on GitHub"
+            >
+              <HeartIcon className="w-4 h-4 sm:w-5 sm:h-5 group-hover:animate-pulse" />
+            </a>
 
             {/* Settings Button */}
             <button
