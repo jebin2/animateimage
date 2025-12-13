@@ -167,8 +167,8 @@ const App: React.FC = () => {
         setProcessing({
           isLoading: false,
           statusMessage: '',
-          error: errorMsg || "An unexpected error occurred."
         });
+        showError(errorMsg || "An unexpected error occurred.");
       }
     }
   };
@@ -466,12 +466,7 @@ const App: React.FC = () => {
                 </div>
               )}
 
-              {processing.error && (
-                <div className="p-4 bg-red-50 border border-red-100 rounded-2xl flex items-start gap-3">
-                  <AlertCircleIcon className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
-                  <p className="text-sm text-red-600 font-medium">{processing.error}</p>
-                </div>
-              )}
+
 
               <button
                 onClick={handleGenerateClick}
