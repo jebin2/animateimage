@@ -78,6 +78,7 @@ interface UserInfoResponse {
     profile_picture?: string | null;
 }
 
+
 // Configuration
 let CONFIG = {
     clientId: '',
@@ -85,164 +86,15 @@ let CONFIG = {
     storagePrefix: 'auth' // Prefix for all storage keys
 };
 
+// In-memory token storage (cleared on page refresh)
+let accessToken: string | null = null;
+
 // Dynamic storage keys based on prefix
 function getStorageKeys() {
     return {
-        accessToken: `${CONFIG.storagePrefix}_access_token`,
         user: `${CONFIG.storagePrefix}_user`,
-        tokenExpiry: `${CONFIG.storagePrefix}_token_expiry`,
         avatarCache: `${CONFIG.storagePrefix}_avatar_cache`
     };
-}
-
-// IndexedDB configuration (uses storage prefix)
-function getDbName() {
-    return `${CONFIG.storagePrefix}_db`;
-}
-const DB_VERSION = 1;
-const STORE_NAME = 'auth';
-
-// Cookie expiry (30 days)
-const COOKIE_EXPIRY_DAYS = 30;
-
-// Token expiry time (23 hours - refresh before 24h expiry)
-const TOKEN_REFRESH_THRESHOLD_MS = 23 * 60 * 60 * 1000;
-
-// ==================== Cookie Helpers ====================
-
-function setCookie(key: string, value: string): void {
-    const date = new Date();
-    date.setTime(date.getTime() + (COOKIE_EXPIRY_DAYS * 24 * 60 * 60 * 1000));
-    const expires = `expires=${date.toUTCString()}`;
-    document.cookie = `${key}=${encodeURIComponent(value)};${expires};path=/;SameSite=Lax`;
-}
-
-function getCookie(key: string): string | null {
-    const name = `${key}=`;
-    const decodedCookie = decodeURIComponent(document.cookie);
-    const cookies = decodedCookie.split(';');
-    for (let cookie of cookies) {
-        cookie = cookie.trim();
-        if (cookie.indexOf(name) === 0) {
-            return cookie.substring(name.length);
-        }
-    }
-    return null;
-}
-
-function deleteCookie(key: string): void {
-    document.cookie = `${key}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
-}
-
-// ==================== IndexedDB Helpers ====================
-
-function openAuthDatabase(): Promise<IDBDatabase> {
-    return new Promise((resolve, reject) => {
-        const request = indexedDB.open(getDbName(), DB_VERSION);
-
-        request.onerror = () => reject(request.error);
-        request.onsuccess = () => resolve(request.result);
-
-        request.onupgradeneeded = (event) => {
-            const db = (event.target as IDBOpenDBRequest).result;
-            if (!db.objectStoreNames.contains(STORE_NAME)) {
-                db.createObjectStore(STORE_NAME);
-            }
-        };
-    });
-}
-
-async function setIndexedDB(key: string, value: string): Promise<void> {
-    try {
-        const db = await openAuthDatabase();
-        return new Promise((resolve) => {
-            const transaction = db.transaction([STORE_NAME], 'readwrite');
-            const store = transaction.objectStore(STORE_NAME);
-            store.put(value, key);
-            transaction.oncomplete = () => resolve();
-            transaction.onerror = () => resolve(); // Fail silently
-        });
-    } catch {
-        // Fail silently
-    }
-}
-
-async function getIndexedDB(key: string): Promise<string | null> {
-    try {
-        const db = await openAuthDatabase();
-        return new Promise((resolve) => {
-            const transaction = db.transaction([STORE_NAME], 'readonly');
-            const store = transaction.objectStore(STORE_NAME);
-            const request = store.get(key);
-            request.onsuccess = () => resolve(request.result as string || null);
-            request.onerror = () => resolve(null);
-        });
-    } catch {
-        return null;
-    }
-}
-
-async function deleteIndexedDB(key: string): Promise<void> {
-    try {
-        const db = await openAuthDatabase();
-        return new Promise((resolve) => {
-            const transaction = db.transaction([STORE_NAME], 'readwrite');
-            const store = transaction.objectStore(STORE_NAME);
-            store.delete(key);
-            transaction.oncomplete = () => resolve();
-            transaction.onerror = () => resolve();
-        });
-    } catch {
-        // Fail silently
-    }
-}
-
-// ==================== Multi-layer Storage ====================
-
-async function saveToAllStorages(key: string, value: string): Promise<void> {
-    // Save to localStorage (primary)
-    localStorage.setItem(key, value);
-    // Save to cookie (backup)
-    setCookie(key, value);
-    // Save to IndexedDB (failsafe)
-    await setIndexedDB(key, value);
-}
-
-async function getFromStorages(key: string): Promise<string | null> {
-    // Try localStorage first (fastest)
-    let value = localStorage.getItem(key);
-    if (value) return value;
-
-    // Try cookie (backup)
-    value = getCookie(key);
-    if (value) {
-        // Restore to localStorage
-        localStorage.setItem(key, value);
-        return value;
-    }
-
-    // Try IndexedDB (failsafe)
-    value = await getIndexedDB(key);
-    if (value) {
-        // Restore to localStorage and cookie
-        localStorage.setItem(key, value);
-        setCookie(key, value);
-        return value;
-    }
-
-    return null;
-}
-
-async function clearFromAllStorages(key: string): Promise<void> {
-    localStorage.removeItem(key);
-    deleteCookie(key);
-    await deleteIndexedDB(key);
-}
-
-async function clearAllAuthStorage(): Promise<void> {
-    await clearFromAllStorages(getStorageKeys().accessToken);
-    await clearFromAllStorages(getStorageKeys().user);
-    await clearFromAllStorages(getStorageKeys().tokenExpiry);
 }
 
 // Event callbacks
@@ -306,8 +158,8 @@ export async function updateUserCredits(newCredits: number): Promise<void> {
         credits: newCredits
     };
 
-    // Save to all storage layers and notify subscribers
-    await saveToAllStorages(getStorageKeys().user, JSON.stringify(updatedUser));
+    // Save to localStorage and notify subscribers
+    localStorage.setItem(getStorageKeys().user, JSON.stringify(updatedUser));
     notifyAuthStateChange(updatedUser);
 }
 
@@ -360,13 +212,11 @@ async function handleGoogleCredentialResponse(response: GoogleCredentialResponse
                 isNewUser: authResponse.is_new_user
             };
 
-            // Calculate token expiry (24 hours from now)
-            const expiryTime = Date.now() + 24 * 60 * 60 * 1000;
+            // Store access token in memory (cleared on page refresh)
+            accessToken = authResponse.access_token;
 
-            // Store auth data to all storage layers
-            await saveToAllStorages(getStorageKeys().accessToken, authResponse.access_token);
-            await saveToAllStorages(getStorageKeys().user, JSON.stringify(user));
-            await saveToAllStorages(getStorageKeys().tokenExpiry, expiryTime.toString());
+            // Store user info in localStorage for convenience
+            localStorage.setItem(getStorageKeys().user, JSON.stringify(user));
 
             notifyAuthStateChange(user);
         }
@@ -387,8 +237,9 @@ async function authenticateWithServer(idToken: string): Promise<AuthApiResponse>
         },
         body: JSON.stringify({
             id_token: idToken,
-            temp_user_id: null
-        })
+            client_type: 'web'  // Request HttpOnly cookie for refresh token
+        }),
+        credentials: 'include'  // Important: Send/receive cookies
     });
 
     if (!response.ok) {
@@ -441,10 +292,13 @@ export function renderGoogleButton(container: HTMLElement, config?: Partial<Goog
  */
 export async function signOut(): Promise<void> {
     const user = getCurrentUserSync();
-    const token = getAccessTokenSync();
+    const token = accessToken;
 
-    // Clear all stored auth data from all storage layers
-    await clearAllAuthStorage();
+    // Clear access token from memory
+    accessToken = null;
+
+    // Clear user info from localStorage
+    localStorage.removeItem(getStorageKeys().user);
 
     // Disable auto-select for future
     if (window.google?.accounts?.id) {
@@ -458,14 +312,15 @@ export async function signOut(): Promise<void> {
         }
     }
 
-    // Notify server (fire and forget)
+    // Call server logout to clear HttpOnly cookie
     try {
         if (token) {
             await fetch(`${CONFIG.apiBaseUrl}/auth/logout`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`
-                }
+                },
+                credentials: 'include'  // Important: Send cookies
             });
         }
     } catch (e) {
@@ -484,17 +339,10 @@ export async function signOut(): Promise<void> {
 }
 
 /**
- * Get stored access token (sync - from localStorage only)
+ * Get stored access token (from memory)
  */
-function getAccessTokenSync(): string | null {
-    return localStorage.getItem(getStorageKeys().accessToken);
-}
-
-/**
- * Get stored access token (with failsafe fallback)
- */
-export async function getAccessToken(): Promise<string | null> {
-    return await getFromStorages(getStorageKeys().accessToken);
+export function getAccessToken(): string | null {
+    return accessToken;
 }
 
 /**
@@ -512,67 +360,45 @@ function getCurrentUserSync(): GoogleUser | null {
 }
 
 /**
- * Get current user from storage (with failsafe fallback)
+ * Get current user from storage (async for API compatibility)
  */
 export async function getCurrentUser(): Promise<GoogleUser | null> {
-    const userStr = await getFromStorages(getStorageKeys().user);
-    if (!userStr) return null;
-
-    try {
-        return JSON.parse(userStr);
-    } catch {
-        return null;
-    }
+    return getCurrentUserSync();
 }
 
 /**
  * Check if user is authenticated (sync check)
  */
 export function isAuthenticated(): boolean {
-    const token = getAccessTokenSync();
+    const token = accessToken;
     const user = getCurrentUserSync();
     return !!(token && user);
 }
 
 /**
- * Check if token needs refresh
- */
-async function shouldRefreshToken(): Promise<boolean> {
-    const expiryStr = await getFromStorages(getStorageKeys().tokenExpiry);
-    if (!expiryStr) return false;
-
-    const expiry = parseInt(expiryStr, 10);
-    const timeUntilExpiry = expiry - Date.now();
-
-    return timeUntilExpiry < TOKEN_REFRESH_THRESHOLD_MS && timeUntilExpiry > 0;
-}
-
-/**
- * Refresh the access token
+ * Refresh the access token using HttpOnly cookie
  */
 export async function refreshToken(): Promise<boolean> {
-    const currentToken = await getAccessToken();
-    if (!currentToken) return false;
-
     try {
         const response = await fetch(`${CONFIG.apiBaseUrl}/auth/refresh`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ token: currentToken })
+            body: JSON.stringify({}),  // Empty body - refresh token comes from HttpOnly cookie
+            credentials: 'include'  // Important: Send HttpOnly cookie
         });
 
         if (!response.ok) {
-            // Token invalid, sign out
+            // Refresh token invalid or expired, sign out
             await signOut();
             return false;
         }
 
         const data = await response.json();
         if (data.success && data.access_token) {
-            await saveToAllStorages(getStorageKeys().accessToken, data.access_token);
-            await saveToAllStorages(getStorageKeys().tokenExpiry, (Date.now() + 24 * 60 * 60 * 1000).toString());
+            // Update access token in memory
+            accessToken = data.access_token;
             return true;
         }
 
@@ -587,14 +413,15 @@ export async function refreshToken(): Promise<boolean> {
  * Fetch current user info from server (refreshes credits, etc.)
  */
 export async function fetchUserInfo(): Promise<GoogleUser | null> {
-    const token = await getAccessToken();
+    const token = getAccessToken();
     if (!token) return null;
 
     try {
         const response = await fetch(`${CONFIG.apiBaseUrl}/auth/me`, {
             headers: {
                 'Authorization': `Bearer ${token}`
-            }
+            },
+            credentials: 'include'
         });
 
         if (!response.ok) {
@@ -615,8 +442,8 @@ export async function fetchUserInfo(): Promise<GoogleUser | null> {
             isNewUser: false
         };
 
-        // Update stored user across all storages
-        await saveToAllStorages(getStorageKeys().user, JSON.stringify(user));
+        // Update stored user in localStorage
+        localStorage.setItem(getStorageKeys().user, JSON.stringify(user));
         notifyAuthStateChange(user);
 
         return user;
@@ -628,23 +455,31 @@ export async function fetchUserInfo(): Promise<GoogleUser | null> {
 
 /**
  * Initialize auth and restore session if available
+ * This proactively tries to refresh from HttpOnly cookie on page load
  */
 export async function initializeAuth(): Promise<GoogleUser | null> {
-    // First, try to restore from storage (with failsafe)
-    const storedUser = await getCurrentUser();
-    const token = await getAccessToken();
-
-    if (storedUser && token) {
-        // Check if token needs refresh
-        if (await shouldRefreshToken()) {
-            await refreshToken();
-        }
-
-        // Fetch fresh user info
+    // If we already have a token in memory, verify it's still valid
+    if (accessToken) {
         const freshUser = await fetchUserInfo();
         if (freshUser) {
             return freshUser;
         }
+    }
+
+    // Try to restore session from HttpOnly cookie (Step 2 from server guide)
+    // This allows users to stay logged in after page refresh for 7 days
+    try {
+        const refreshed = await refreshToken();
+        if (refreshed) {
+            // Successfully restored session, fetch user info
+            const user = await fetchUserInfo();
+            if (user) {
+                return user;
+            }
+        }
+    } catch (error) {
+        // No valid refresh cookie, user needs to sign in
+        console.log('No valid session found, user needs to sign in');
     }
 
     // Initialize Google Sign-In for future sign-ins
@@ -664,7 +499,7 @@ export async function authenticatedFetch(
     url: string,
     options: RequestInit = {}
 ): Promise<Response> {
-    const token = await getAccessToken();
+    const token = getAccessToken();
 
     const headers = new Headers(options.headers);
     if (token) {
@@ -673,16 +508,17 @@ export async function authenticatedFetch(
 
     const response = await fetch(url, {
         ...options,
-        headers
+        headers,
+        credentials: 'include'  // Important: Send/receive cookies
     });
 
     // Handle 401 by refreshing token and retrying
     if (response.status === 401 && token) {
         const refreshed = await refreshToken();
         if (refreshed) {
-            const newToken = await getAccessToken();
+            const newToken = getAccessToken();
             headers.set('Authorization', `Bearer ${newToken}`);
-            return fetch(url, { ...options, headers });
+            return fetch(url, { ...options, headers, credentials: 'include' });
         }
         // Refresh failed, sign out
         await signOut();

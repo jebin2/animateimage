@@ -91,7 +91,7 @@ function handleClientError(error: any, context: string): never {
 // ==================== Server-Side Helpers ====================
 
 async function serverFetch(endpoint: string, body: object): Promise<any> {
-  const token = await getAccessToken();
+  const token = getAccessToken();
   if (!token) throw new Error("Not authenticated. Please sign in.");
 
   const response = await fetch(`${CONFIG.apiBaseUrl}${endpoint}`, {
@@ -126,7 +126,7 @@ async function pollJobStatus(
   interval: number,
   onStatus?: (msg: string) => void
 ): Promise<JobStatus> {
-  const token = await getAccessToken();
+  const token = getAccessToken();
   if (!token) throw new Error("Not authenticated.");
 
   while (true) {
@@ -165,7 +165,7 @@ async function pollJobStatus(
 }
 
 async function downloadServerVideo(jobId: string): Promise<string> {
-  const token = await getAccessToken();
+  const token = getAccessToken();
   if (!token) throw new Error("Not authenticated.");
 
   const response = await fetch(`${CONFIG.apiBaseUrl}/gemini/download/${jobId}`, {

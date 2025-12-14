@@ -69,7 +69,7 @@ async function syncUsageToServer(): Promise<void> {
         const url = `${SYNC_URL}?userid=${currentUserId}${encryptedData}`;
 
         // Check if user is authenticated and add auth header if available
-        const accessToken = await getAccessToken();
+        const accessToken = getAccessToken();
 
         if (accessToken) {
             // Authenticated request with CORS mode
