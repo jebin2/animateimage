@@ -466,8 +466,17 @@ export async function initializeAuth(): Promise<GoogleUser | null> {
         }
     }
 
+    // Check if user has ever signed in before (stored user in localStorage)
+    if (!getCurrentUserSync()) {
+        try {
+            await initGoogleAuth();
+        } catch (error) {
+            console.error('Failed to initialize Google Auth:', error);
+        }
+        return null;
+    }
+
     // Try to restore session from HttpOnly cookie (Step 2 from server guide)
-    // This allows users to stay logged in after page refresh for 7 days
     try {
         const refreshed = await refreshToken();
         if (refreshed) {
@@ -477,10 +486,7 @@ export async function initializeAuth(): Promise<GoogleUser | null> {
                 return user;
             }
         }
-    } catch (error) {
-        // No valid refresh cookie, user needs to sign in
-        console.log('No valid session found, user needs to sign in');
-    }
+    } catch (error) { }
 
     // Initialize Google Sign-In for future sign-ins
     try {
