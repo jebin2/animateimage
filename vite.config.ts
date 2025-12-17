@@ -7,8 +7,14 @@ export default defineConfig(({ mode }) => {
   return {
     base: '/animateimage/',
     server: {
-      port: 3000,
+      port: 3001,
       host: '0.0.0.0',
+      strictPort: true
+    },
+    preview: {
+      port: 3001,
+      host: '0.0.0.0',
+      strictPort: true
     },
     plugins: [react()],
     define: {
