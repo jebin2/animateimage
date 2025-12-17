@@ -1,6 +1,8 @@
 // Google Authentication Service
 // Handles Google Sign-In, JWT token management, and user session
 
+import { multiSet, multiGet, multiGetSync, multiRemove } from './multiStorageService';
+
 // TypeScript declarations for Google Identity Services
 declare global {
     interface Window {
@@ -158,8 +160,8 @@ export async function updateUserCredits(newCredits: number): Promise<void> {
         credits: newCredits
     };
 
-    // Save to localStorage and notify subscribers
-    localStorage.setItem(getStorageKeys().user, JSON.stringify(updatedUser));
+    // Save to all storage mechanisms and notify subscribers
+    multiSet(getStorageKeys().user, updatedUser).catch(console.error);
     notifyAuthStateChange(updatedUser);
 }
 
@@ -215,8 +217,8 @@ async function handleGoogleCredentialResponse(response: GoogleCredentialResponse
             // Store access token in memory (cleared on page refresh)
             accessToken = authResponse.access_token;
 
-            // Store user info in localStorage for convenience
-            localStorage.setItem(getStorageKeys().user, JSON.stringify(user));
+            // Store user info in multi-storage (localStorage, cookie, IndexedDB)
+            await multiSet(getStorageKeys().user, user);
 
             notifyAuthStateChange(user);
         }
@@ -297,8 +299,8 @@ export async function signOut(): Promise<void> {
     // Clear access token from memory
     accessToken = null;
 
-    // Clear user info from localStorage
-    localStorage.removeItem(getStorageKeys().user);
+    // Clear user info from all storage mechanisms
+    await multiRemove(getStorageKeys().user);
 
     // Disable auto-select for future
     if (window.google?.accounts?.id) {
@@ -346,10 +348,10 @@ export function getAccessToken(): string | null {
 }
 
 /**
- * Get current user from storage (sync - from localStorage only)
+ * Get current user from storage (sync - tries localStorage first, then cookie)
  */
 function getCurrentUserSync(): GoogleUser | null {
-    const userStr = localStorage.getItem(getStorageKeys().user);
+    const userStr = multiGetSync(getStorageKeys().user);
     if (!userStr) return null;
 
     try {
@@ -360,10 +362,17 @@ function getCurrentUserSync(): GoogleUser | null {
 }
 
 /**
- * Get current user from storage (async for API compatibility)
+ * Get current user from storage (async - checks all storage mechanisms)
  */
 export async function getCurrentUser(): Promise<GoogleUser | null> {
-    return getCurrentUserSync();
+    const userStr = await multiGet(getStorageKeys().user);
+    if (!userStr) return null;
+
+    try {
+        return JSON.parse(userStr);
+    } catch {
+        return null;
+    }
 }
 
 /**
@@ -442,8 +451,8 @@ export async function fetchUserInfo(): Promise<GoogleUser | null> {
             isNewUser: false
         };
 
-        // Update stored user in localStorage
-        localStorage.setItem(getStorageKeys().user, JSON.stringify(user));
+        // Update stored user in all storage mechanisms
+        await multiSet(getStorageKeys().user, user);
         notifyAuthStateChange(user);
 
         return user;
