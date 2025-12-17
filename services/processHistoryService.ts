@@ -85,10 +85,11 @@ export async function getProcessHistory(
         }
 
         if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ detail: 'Failed to fetch process history' }));
+            const errorData = await response.json().catch(() => ({ error: { message: 'Try again.' } }));
+            // Handle standardized error response: { success: false, error: { code, message, details } }
             return {
                 success: false,
-                error: errorData.detail || 'Failed to fetch process history',
+                error: errorData.error?.message || errorData.detail || 'Try again.',
                 errorType: 'SERVER_ERROR'
             };
         }
@@ -130,8 +131,9 @@ export async function deleteJob(jobId: string): Promise<{
         }
 
         if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ detail: 'Failed to delete job' }));
-            return { success: false, error: errorData.detail || 'Failed to delete job' };
+            const errorData = await response.json().catch(() => ({ error: { message: 'Try again.' } }));
+            // Handle standardized error response: { success: false, error: { code, message, details } }
+            return { success: false, error: errorData.error?.message || errorData.detail || 'Try again.' };
         }
 
         const data = await response.json();

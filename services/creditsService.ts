@@ -97,10 +97,11 @@ export async function getCreditsBalance(): Promise<CreditsResponse<CreditsBalanc
         }
 
         if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ detail: 'Failed to fetch credits' }));
+            const errorData = await response.json().catch(() => ({ error: { message: 'Try again.' } }));
+            // Handle standardized error response: { success: false, error: { code, message, details } }
             return {
                 success: false,
-                error: errorData.detail || 'Failed to fetch credits',
+                error: errorData.error?.message || errorData.detail || 'Try again.',
                 errorType: 'SERVER_ERROR'
             };
         }
@@ -150,10 +151,11 @@ export async function getCreditsHistory(
         }
 
         if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ detail: 'Failed to fetch history' }));
+            const errorData = await response.json().catch(() => ({ error: { message: 'Try again.' } }));
+            // Handle standardized error response: { success: false, error: { code, message, details } }
             return {
                 success: false,
-                error: errorData.detail || 'Failed to fetch credit history',
+                error: errorData.error?.message || errorData.detail || 'Try again.',
                 errorType: 'SERVER_ERROR'
             };
         }

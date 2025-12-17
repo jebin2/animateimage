@@ -105,10 +105,11 @@ async function serverFetch(endpoint: string, body: object): Promise<any> {
 
   if (!response.ok) {
     if (response.status === 401) throw new Error("Session expired. Please sign in again.");
-    if (response.status === 402) throw new Error("Insufficient credits.");
     if (response.status === 429) throw new Error("Rate limit exceeded. Please try again later.");
-    const error = await response.json().catch(() => ({ detail: 'Request failed' }));
-    throw new Error(error.detail || `Server error: ${response.status}`);
+    const errorData = await response.json().catch(() => ({ error: { message: 'Try again.' } }));
+    // Handle standardized error response: { success: false, error: { code, message, details } }
+    const errorMessage = errorData.error?.message || errorData.detail || 'Try again.';
+    throw new Error(errorMessage);
   }
 
   const data = await response.json();
@@ -137,7 +138,9 @@ async function pollJobStatus(
     if (!response.ok) {
       if (response.status === 401) throw new Error("Session expired. Please sign in again.");
       if (response.status === 404) throw new Error("Job not found.");
-      throw new Error(`Failed to check job status: ${response.status}`);
+      const errorData = await response.json().catch(() => ({ error: { message: 'Try again.' } }));
+      const errorMessage = errorData.error?.message || 'Try again.';
+      throw new Error(errorMessage);
     }
 
     const status: JobStatus = await response.json();

@@ -54,7 +54,8 @@ export const authService = {
 
             return {
                 success: response.ok,
-                message: data.message || data.detail || (response.ok ? 'Registration successful' : 'Registration failed'),
+                // Handle standardized error response: { success: false, error: { code, message, details } }
+                message: data.error?.message || data.message || data.detail || (response.ok ? 'Registration successful' : 'Try again.'),
                 errorType: response.ok ? undefined : 'SERVER_ERROR'
             };
         } catch (error) {
@@ -110,7 +111,8 @@ export const authService = {
 
             return {
                 success: response.ok,
-                message: data.message || 'Reset instructions sent',
+                // Handle standardized error response: { success: false, error: { code, message, details } }
+                message: data.error?.message || data.message || (response.ok ? 'Reset instructions sent' : 'Try again.'),
                 errorType: response.ok ? undefined : 'SERVER_ERROR'
             };
         } catch (error) {

@@ -136,10 +136,11 @@ export async function getPackages(): Promise<RazorpayResponse<CreditPackage[]>> 
         const response = await fetch(`${CONFIG.apiBaseUrl}/payments/packages`);
 
         if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ detail: 'Failed to fetch packages' }));
+            const errorData = await response.json().catch(() => ({ error: { message: 'Try again.' } }));
+            // Handle standardized error response: { success: false, error: { code, message, details } }
             return {
                 success: false,
-                error: errorData.detail || 'Failed to fetch packages',
+                error: errorData.error?.message || errorData.detail || 'Try again.',
                 errorType: 'SERVER_ERROR'
             };
         }
@@ -186,10 +187,11 @@ export async function createOrder(packageId: string): Promise<RazorpayResponse<R
         }
 
         if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ detail: 'Failed to create order' }));
+            const errorData = await response.json().catch(() => ({ error: { message: 'Try again.' } }));
+            // Handle standardized error response: { success: false, error: { code, message, details } }
             return {
                 success: false,
-                error: errorData.detail || 'Failed to create order',
+                error: errorData.error?.message || errorData.detail || 'Try again.',
                 errorType: 'SERVER_ERROR'
             };
         }
@@ -240,10 +242,11 @@ export async function verifyPayment(paymentData: {
         }
 
         if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ detail: 'Payment verification failed' }));
+            const errorData = await response.json().catch(() => ({ error: { message: 'Try again.' } }));
+            // Handle standardized error response: { success: false, error: { code, message, details } }
             return {
                 success: false,
-                error: errorData.detail || 'Payment verification failed',
+                error: errorData.error?.message || errorData.detail || 'Try again.',
                 errorType: 'SERVER_ERROR'
             };
         }

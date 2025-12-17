@@ -245,8 +245,9 @@ async function authenticateWithServer(idToken: string): Promise<AuthApiResponse>
     });
 
     if (!response.ok) {
-        const error = await response.json().catch(() => ({ detail: 'Authentication failed' }));
-        throw new Error(error.detail || 'Authentication failed');
+        const errorData = await response.json().catch(() => ({ error: { message: 'Try again.' } }));
+        // Handle standardized error response: { success: false, error: { code, message, details } }
+        throw new Error(errorData.error?.message || errorData.detail || 'Try again.');
     }
 
     return response.json();
