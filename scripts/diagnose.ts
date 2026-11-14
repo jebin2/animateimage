@@ -1,6 +1,6 @@
 // Runs the app's own Gemini code from the terminal, step by step, with timings.
 //   bun scripts/diagnose.ts            models + key check + motion prompt (cheap)
-//   bun scripts/diagnose.ts --video    also makes one Veo clip (billed) -> scripts/out.mp4
+//   bun scripts/diagnose.ts --video    also makes one 4 s video (billed) -> scripts/out.mp4
 //   bun scripts/diagnose.ts --edit     also one image edit (billed)     -> scripts/out.png
 // Key: GEMINI_API_KEY, or the GNOME keyring entry "service gemini account api".
 import { GoogleGenAI } from "@google/genai";
@@ -36,7 +36,7 @@ if (process.argv.includes("--edit")) {
   log("edit saved to scripts/out.png");
 }
 if (process.argv.includes("--video")) {
-  const r = await generateVideo(img, "image/png", prompt, { apiKey: key, aspectRatio: "16:9", loop: true, onStatus });
+  const r = await generateVideo(img, "image/png", prompt, { apiKey: key, aspectRatio: "16:9", loop: true, seconds: 4, onStatus });
   await Bun.write(new URL("./out.mp4", import.meta.url), r.blob);
   log(`video saved to scripts/out.mp4 (${r.blob.size} bytes, model ${r.model}, looped ${r.looped})`);
 }

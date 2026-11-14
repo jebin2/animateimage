@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { AppMode, ProcessingState, AspectRatio } from './types';
-import { editImage, generateVideo, generateAnimationPrompt } from './services/geminiService';
+import { editImage, generateVideo, generateAnimationPrompt, checkKey, Capabilities, VIDEO_SECONDS, VIDEO_USD_PER_SECOND } from './services/geminiService';
 import { loadKey, saveKey, forgetKey } from './services/keyStore';
 import { UploadIcon, VideoIcon, WandIcon, TrashIcon, SparklesIcon, SettingsIcon, HeartIcon, DownloadIcon, RefreshIcon } from './components/Icons';
 import LoadingSpinner from './components/LoadingSpinner';
@@ -25,6 +25,8 @@ const App: React.FC = () => {
   const [isAutoPrompt, setIsAutoPrompt] = useState<boolean>(false);
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('16:9');
   const [loop, setLoop] = useState<boolean>(true);
+  const [seconds, setSeconds] = useState<number>(6);
+  const [caps, setCaps] = useState<Capabilities | null>(null);
   const [dragging, setDragging] = useState(false);
 
   const [processing, setProcessing] = useState<ProcessingState>({ isLoading: false, statusMessage: '' });
@@ -40,9 +42,11 @@ const App: React.FC = () => {
     const { key, remembered } = loadKey();
     setApiKey(key);
     setRememberKey(remembered || !key);
+    // What the saved key can do (no cost: nothing is generated).
+    if (key) checkKey(key).then(setCaps).catch(() => setCaps(null));
   }, []);
 
-  // Seconds counter while waiting (Veo takes minutes).
+  // Seconds counter while waiting (video takes minutes).
   useEffect(() => {
     if (startedAt === null) return;
     const t = setInterval(() => setElapsed(Math.floor((Date.now() - startedAt) / 1000)), 1000);
@@ -81,7 +85,7 @@ const App: React.FC = () => {
             finalPrompt = 'Subtle cinematic movement';
           }
         }
-        const { url, model, looped } = await generateVideo(selectedImage, mimeType, finalPrompt, { apiKey: key, aspectRatio, loop, onStatus });
+        const { url, model, looped } = await generateVideo(selectedImage, mimeType, finalPrompt, { apiKey: key, aspectRatio, loop, seconds, onStatus });
         setResultVideo(url);
         setVideoInfo({ model, looped });
         if (loop && !looped) showWarning(`${model} can't make seamless loops, so this clip doesn't loop perfectly.`);
@@ -97,13 +101,15 @@ const App: React.FC = () => {
     }
   };
 
-  const handleKeySave = (key: string, remember: boolean) => {
+  // The dialog stays open to show what the key can do; it closes itself when everything works.
+  const handleKeySave = (key: string, remember: boolean, c: Capabilities) => {
     saveKey(key, remember);
     setApiKey(key);
     setRememberKey(remember);
-    setShowApiKeyModal(false);
-    if (pendingAutoGenerate && selectedImage) {
+    setCaps(c);
+    if (pendingAutoGenerate && selectedImage && c[mode].ok) {
       setPendingAutoGenerate(false);
+      setShowApiKeyModal(false);
       executeGeneration(key);
     }
   };
@@ -112,6 +118,7 @@ const App: React.FC = () => {
     forgetKey();
     setApiKey('');
     setRememberKey(true);
+    setCaps(null);
   };
 
   const openSettings = () => {
@@ -153,7 +160,10 @@ const App: React.FC = () => {
 
   const handleGenerateClick = () => {
     if (!selectedImage || processing.isLoading) return;
-    if (apiKey) {
+    if (apiKey && caps && !caps[mode].ok) {
+      showError(`Your key can't ${mode === 'animate' ? 'make videos' : 'edit images'}: it ${caps[mode].why}.`);
+      setShowApiKeyModal(true);
+    } else if (apiKey) {
       executeGeneration(apiKey);
     } else {
       setPendingAutoGenerate(true);
@@ -356,6 +366,19 @@ const App: React.FC = () => {
                       <span className="font-bold text-slate-700">Seamless loop.</span> The clip ends on your image, so it repeats without a jump.
                     </span>
                   </label>
+                  <div className="mt-3 ml-1 flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-extrabold text-slate-700 mr-1">Length</span>
+                    {VIDEO_SECONDS.map(n => (
+                      <button
+                        key={n}
+                        onClick={() => setSeconds(n)}
+                        className={`px-3 py-1.5 rounded-lg border text-sm font-bold transition-all ${seconds === n ? 'bg-pink-50 border-pink-200 text-pink-600' : 'bg-white border-slate-100 text-slate-600 hover:border-pink-200'}`}
+                      >
+                        {n} s
+                      </button>
+                    ))}
+                    <span className="text-xs text-slate-500">≈ ${(seconds * VIDEO_USD_PER_SECOND).toFixed(2)} on your Google bill</span>
+                  </div>
                 </div>
               )}
 
@@ -391,7 +414,7 @@ const App: React.FC = () => {
                     <p className="text-lg lg:text-xl font-extrabold text-slate-700">Bring a picture to life</p>
                     <p className="text-slate-500 text-sm lg:text-base font-medium max-w-sm mx-auto">
                       {mode === 'animate'
-                        ? 'Add an image and press Animate. Veo makes a short clip, about 8 seconds.'
+                        ? 'Add an image and press Animate. Google\'s video model makes a short clip.'
                         : 'Add an image, describe the change, and press Edit image.'}
                     </p>
                   </div>
@@ -474,6 +497,7 @@ const App: React.FC = () => {
         isOpen={showApiKeyModal}
         initialKey={apiKey}
         initialRemember={rememberKey}
+        caps={caps}
         onClose={() => { setShowApiKeyModal(false); setPendingAutoGenerate(false); }}
         onSave={handleKeySave}
         onForget={handleKeyForget}

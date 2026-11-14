@@ -1,10 +1,16 @@
 // Talks to Google's Gemini API straight from the browser, with the user's own
 // API key. There is no server of ours in between: the key and the images go
 // only to Google (generativelanguage.googleapis.com).
+//
+// Video: Gemini Omni Flash (the Gemini API's video model since the Veo 3.1
+// previews were shut down on 2026-10-22), through the Interactions API. If a
+// key still lists a Veo model and no Omni, Veo is used instead.
 
 import { GoogleGenAI } from "@google/genai";
 import { ANIMATION_PROMPT } from "../prompts/animation";
 import { AspectRatio } from "../types";
+
+const API = "https://generativelanguage.googleapis.com/v1beta";
 
 export interface GeminiOptions {
   apiKey: string;
@@ -14,24 +20,28 @@ export interface GeminiOptions {
 export interface VideoOptions extends GeminiOptions {
   aspectRatio: AspectRatio;
   loop: boolean;
+  seconds: number;
 }
 
-// Google renames and retires models (especially previews), so the app asks the
-// API which models this key can use and takes the first match from each list.
-// Newest and best first; add new names at the top.
-// The motion description is one short sentence: a Lite model writes it in a
-// second or two, where full Flash thinks for ~25 s.
+/** Google's list price for Omni Flash video at 720p (Nov 2026), for the estimate shown before generating. */
+export const VIDEO_USD_PER_SECOND = 0.07;
+export const VIDEO_SECONDS = [4, 6, 8] as const;
+
+// Google renames and retires models, so the app asks the API which models this
+// key can see and takes the first match from each list. Newest and best first.
+// The motion description is one short sentence: a Lite model writes it in ~2 s,
+// where full Flash thinks for ~25 s.
 const PREFERRED = {
   text: ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-2.5-flash-lite', 'gemini-flash-lite-latest', 'gemini-2.5-flash', 'gemini-flash-latest'],
-  image: ['gemini-3.1-flash-image', 'gemini-3.1-flash-lite-image', 'gemini-3.1-flash-image-preview', 'gemini-2.5-flash-image'],
-  video: ['veo-3.1-generate-001', 'veo-3.1-generate-preview', 'veo-3.1-fast-generate-001', 'veo-3.1-fast-generate-preview', 'veo-3.0-generate-001'],
+  image: ['gemini-3.1-flash-image', 'gemini-3.1-flash-lite-image', 'gemini-2.5-flash-image'],
+  omni: ['gemini-omni-1.2-flash', 'gemini-omni-1.1-flash'],
+  veo: ['veo-3.1-generate-001', 'veo-3.1-generate-preview', 'veo-3.1-fast-generate-001', 'veo-3.1-fast-generate-preview'],
 } as const;
 
 type Kind = keyof typeof PREFERRED;
-/** video is null when the key can't use Veo (its project has no billing). */
-export type Models = { text: string; image: string; video: string | null };
+export type Models = { text: string; image: string; omni: string | null; veo: string | null };
 
-export const NO_VEO = "This key can't use Veo, Google's video model: it only appears for projects with billing turned on. Turn on billing for the key's project in Google AI Studio, then try again. Edit works without it.";
+const BILLING = "needs billing turned on for the key's project in Google AI Studio";
 
 const modelCache = new Map<string, Promise<Models>>();
 
@@ -70,7 +80,12 @@ export function resolveModels(apiKey: string): Promise<Models> {
       const text = pick('text', 'generateContent', /^gemini-[\d.]+-flash(-lite)?$/);
       const image = pick('image', 'generateContent', /^gemini-[\d.]+-flash(-lite)?-image$/);
       if (!text || !image) throw new Error("This key can't use Gemini's text or image models. Check the key in Google AI Studio.");
-      return { text, image, video: pick('video', 'predictLongRunning', /^veo-/) };
+      return {
+        text,
+        image,
+        omni: pick('omni', 'generateContent', /^gemini-omni-[\d.]+-flash$/),
+        veo: pick('veo', 'predictLongRunning', /^veo-/),
+      };
     })();
     p.catch(() => modelCache.delete(apiKey));
     modelCache.set(apiKey, p);
@@ -78,39 +93,110 @@ export function resolveModels(apiKey: string): Promise<Models> {
   return p;
 }
 
-/** Checks a key by listing models with it. Throws a readable error if it fails. */
-export async function checkKey(apiKey: string): Promise<Models> {
+// ---------- key check ----------
+
+export interface Capability { ok: boolean; why?: string; model?: string }
+export interface Capabilities { animate: Capability; edit: Capability }
+
+/**
+ * Tries a model with a deliberately invalid request, so nothing is generated
+ * or billed. Google checks quota first: a free-tier project without access
+ * gets "limit: 0" (429), a project that can use the model gets "invalid
+ * argument" (400).
+ */
+async function probe(call: () => Promise<unknown>, model: string): Promise<Capability> {
+  try {
+    await call();
+    return { ok: true, model };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (/limit: 0\b/.test(msg)) return { ok: false, why: BILLING, model };
+    if (/RESOURCE_EXHAUSTED|429/.test(msg)) return { ok: false, why: "its quota is used up right now; try again later", model };
+    if (/INVALID_ARGUMENT|\b400\b/.test(msg)) return { ok: true, model };
+    return { ok: false, why: friendlyError(e).message, model };
+  }
+}
+
+async function interactions(apiKey: string, body: object): Promise<any> {
+  let res: Response;
+  try {
+    res = await fetch(`${API}/interactions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+      body: JSON.stringify(body),
+    });
+  } catch (e) {
+    throw friendlyError(e);
+  }
+  const text = await res.text();
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${text}`);
+  return JSON.parse(text);
+}
+
+/** What this key can do, without generating anything. Throws if the key itself is bad. */
+export async function checkKey(apiKey: string): Promise<Capabilities> {
   modelCache.delete(apiKey);
-  return resolveModels(apiKey);
+  const models = await resolveModels(apiKey);
+  const ai = client(apiKey);
+
+  const edit = probe(() => ai.models.generateContent({
+    model: models.image,
+    contents: 'probe',
+    config: { responseModalities: ['VIDEO' as any] },   // invalid on purpose
+  }), models.image);
+
+  let animate: Promise<Capability>;
+  if (models.omni) {
+    animate = probe(() => interactions(apiKey, {
+      model: models.omni,
+      input: [{ type: 'text', text: 'probe' }],
+      response_format: { type: 'video', duration: '1s' },   // invalid on purpose (3–15 s)
+      store: false,
+    }), models.omni);
+  } else if (models.veo) {
+    animate = probe(() => ai.models.generateVideos({
+      model: models.veo!, prompt: 'probe', config: { numberOfVideos: 0 },   // invalid on purpose
+    }), models.veo);
+  } else {
+    animate = Promise.resolve({ ok: false, why: "no Google video model is available to this key" });
+  }
+  const [a, e] = await Promise.all([animate, edit]);
+  return { animate: a, edit: e };
 }
 
 /** Turns API errors into something a person can act on. */
 export function friendlyError(error: unknown): Error {
   const msg = error instanceof Error ? error.message : typeof error === 'string' ? error : JSON.stringify(error);
-  if (/API key not valid|API_KEY_INVALID|UNAUTHENTICATED|401/i.test(msg)) {
+  if (/API key not valid|API_KEY_INVALID|UNAUTHENTICATED|\b401\b/i.test(msg)) {
     return new Error("Google rejected this API key. Check it in Settings.");
   }
-  if (/billing|requires a paid|FAILED_PRECONDITION|PERMISSION_DENIED|403/i.test(msg)) {
-    return new Error("This key's project can't use this model. Video (Veo) needs billing turned on for the project in Google AI Studio.");
+  if (/limit: 0\b/.test(msg)) {
+    return new Error(`This model isn't included in Google's free tier: it ${BILLING}.`);
   }
-  if (/RESOURCE_EXHAUSTED|quota|429/i.test(msg)) {
+  if (/billing|requires a paid|FAILED_PRECONDITION|PERMISSION_DENIED|\b403\b/i.test(msg)) {
+    return new Error(`This key's project can't use this model: it ${BILLING}.`);
+  }
+  if (/RESOURCE_EXHAUSTED|quota|\b429\b/i.test(msg)) {
     return new Error("Your key hit its quota or rate limit. Wait a minute, or check your limits in Google AI Studio.");
   }
-  if (/NOT_FOUND|404|not found/i.test(msg)) {
+  if (/NOT_FOUND|\b404\b|not found/i.test(msg)) {
     return new Error("Google says the model wasn't found for this key. It may have been renamed; reload the page to pick again.");
   }
-  if (/SAFETY|blocked|responsible AI|RAI/i.test(msg)) {
+  if (/SAFETY|blocked|responsible AI|RAI|PROHIBITED/i.test(msg)) {
     return new Error("Google's safety filters blocked this request. Try another image or description.");
   }
   if (/Failed to fetch|NetworkError|network/i.test(msg)) {
     return new Error("Couldn't reach Google. Check your connection and try again.");
   }
-  return new Error(msg || "Something went wrong.");
+  const m = msg.match(/"message"\s*:\s*"([^"]+)"/);
+  return new Error(m ? m[1] : msg || "Something went wrong.");
 }
 
 function imagePart(base64Image: string, mimeType: string) {
   return { inlineData: { data: base64Image, mimeType } };
 }
+
+// ---------- text and image ----------
 
 /** A short motion description for the image, used when the user leaves it empty. */
 export async function generateAnimationPrompt(base64Image: string, mimeType: string, options: GeminiOptions): Promise<string> {
@@ -148,7 +234,11 @@ export async function editImage(base64Image: string, mimeType: string, prompt: s
   }
 }
 
-/** Fetches the finished video into memory, so it can be played and saved without the key in a URL. */
+// ---------- video ----------
+
+export interface VideoResult { url: string; blob: Blob; model: string; looped: boolean }
+
+/** Fetches a video file into memory, so it plays and saves without the key in a URL. */
 async function fetchVideo(uri: string, apiKey: string): Promise<Blob> {
   // Header first (keeps the key out of the URL); some redirects need the query form.
   const attempts: [string, RequestInit][] = [
@@ -168,38 +258,71 @@ async function fetchVideo(uri: string, apiKey: string): Promise<Blob> {
   throw friendlyError(last);
 }
 
-/**
- * Animates the image with Veo. With `loop`, the image is also the last frame,
- * so the clip ends where it started and repeats without a jump.
- * Returns a blob: URL of the MP4.
- */
-export async function generateVideo(
-  base64Image: string,
-  mimeType: string,
-  prompt: string,
-  options: VideoOptions,
-): Promise<{ url: string; blob: Blob; model: string; looped: boolean }> {
-  const { apiKey, aspectRatio, onStatus } = options;
-  const models = await resolveModels(apiKey);
-  if (!models.video) throw new Error(NO_VEO);
-  const video = models.video;
-  const ai = client(apiKey);
-  const image = { imageBytes: base64Image, mimeType };
+function base64ToBlob(data: string, type: string): Blob {
+  const bin = atob(data);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new Blob([bytes], { type });
+}
 
+/** Finds the video in an Interactions response (inline base64, or a file URI). */
+function findVideo(node: any): { data?: string; uri?: string; mime?: string } | null {
+  if (!node || typeof node !== 'object') return null;
+  if (node.type === 'video' && (node.data || node.uri)) return { data: node.data, uri: node.uri, mime: node.mime_type };
+  for (const v of Array.isArray(node) ? node : Object.values(node)) {
+    const found = findVideo(v);
+    if (found) return found;
+  }
+  return null;
+}
+
+const LOOP_HINT = " The video loops seamlessly: it starts and ends on exactly this image, with no jump.";
+
+async function omniVideo(model: string, base64Image: string, mimeType: string, prompt: string, o: VideoOptions): Promise<VideoResult> {
+  const image = { type: 'image', data: base64Image, mime_type: mimeType };
+  // Loop: the same image as first and last frame (supported for 3–10 s).
+  const input = o.loop
+    ? [image, image, { type: 'text', text: prompt + LOOP_HINT }]
+    : [image, { type: 'text', text: prompt }];
+  o.onStatus?.('Gemini Omni is animating… this usually takes 1–3 minutes');
+  let response: any;
+  try {
+    response = await interactions(o.apiKey, {
+      model,
+      input,
+      response_format: { type: 'video', aspect_ratio: o.aspectRatio, resolution: '720p', duration: `${o.seconds}s` },
+      background: false,
+      store: false,
+      stream: false,
+    });
+  } catch (e) {
+    throw friendlyError(e);
+  }
+  const video = findVideo(response);
+  if (!video) {
+    throw new Error("No video came back. Google's safety filters may have blocked it; try another image or description.");
+  }
+  o.onStatus?.('Downloading the video…');
+  const blob = video.data
+    ? base64ToBlob(video.data, video.mime || 'video/mp4')
+    : await fetchVideo(video.uri!, o.apiKey);
+  return { url: URL.createObjectURL(blob), blob, model, looped: o.loop };
+}
+
+async function veoVideo(model: string, base64Image: string, mimeType: string, prompt: string, o: VideoOptions): Promise<VideoResult> {
+  const ai = client(o.apiKey);
+  const image = { imageBytes: base64Image, mimeType };
   const start = (loop: boolean) => ai.models.generateVideos({
-    model: video,
-    prompt,
-    image,
-    config: { numberOfVideos: 1, aspectRatio, ...(loop ? { lastFrame: image } : {}) },
+    model, prompt, image,
+    config: { numberOfVideos: 1, aspectRatio: o.aspectRatio, durationSeconds: o.seconds, ...(loop ? { lastFrame: image } : {}) },
   });
 
-  onStatus?.('Sending to Veo…');
-  let looped = options.loop;
+  o.onStatus?.('Sending to Veo…');
+  let looped = o.loop;
   let operation;
   try {
     operation = await start(looped);
   } catch (e) {
-    // Older Veo models don't take a last frame: still make the video.
     const msg = e instanceof Error ? e.message : String(e);
     if (looped && /last_?frame|lastFrame|not supported|INVALID_ARGUMENT/i.test(msg)) {
       looped = false;
@@ -208,8 +331,7 @@ export async function generateVideo(
       throw friendlyError(e);
     }
   }
-
-  onStatus?.('Veo is animating… this usually takes 1–3 minutes');
+  o.onStatus?.('Veo is animating… this usually takes 1–3 minutes');
   while (!operation.done) {
     await new Promise(r => setTimeout(r, 10_000));
     try {
@@ -218,18 +340,21 @@ export async function generateVideo(
       throw friendlyError(e);
     }
   }
-
-  if (operation.error) {
-    throw friendlyError(String(operation.error.message || 'Video generation failed'));
-  }
-  const response = operation.response;
-  const uri = response?.generatedVideos?.[0]?.video?.uri;
+  if (operation.error) throw friendlyError(String(operation.error.message || 'Video generation failed'));
+  const uri = operation.response?.generatedVideos?.[0]?.video?.uri;
   if (!uri) {
-    const why = response?.raiMediaFilteredReasons?.[0];
-    throw new Error(why ? `Google's safety filters blocked the video: ${why}` : "No video came back. Google's safety filters may have blocked it; try another image or description.");
+    const why = operation.response?.raiMediaFilteredReasons?.[0];
+    throw new Error(why ? `Google's safety filters blocked the video: ${why}` : "No video came back. Google's safety filters may have blocked it.");
   }
+  o.onStatus?.('Downloading the video…');
+  const blob = await fetchVideo(uri, o.apiKey);
+  return { url: URL.createObjectURL(blob), blob, model, looped };
+}
 
-  onStatus?.('Downloading the video…');
-  const blob = await fetchVideo(uri, apiKey);
-  return { url: URL.createObjectURL(blob), blob, model: video, looped };
+/** Animates the image with the key's video model. Returns a blob: URL of the MP4. */
+export async function generateVideo(base64Image: string, mimeType: string, prompt: string, options: VideoOptions): Promise<VideoResult> {
+  const models = await resolveModels(options.apiKey);
+  if (models.omni) return omniVideo(models.omni, base64Image, mimeType, prompt, options);
+  if (models.veo) return veoVideo(models.veo, base64Image, mimeType, prompt, options);
+  throw new Error("This key can't make videos: no Google video model is available to it.");
 }

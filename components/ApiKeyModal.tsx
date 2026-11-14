@@ -1,23 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { SparklesIcon, AlertCircleIcon, TrashIcon } from './Icons';
-import { checkKey, NO_VEO } from '../services/geminiService';
-import { showWarning } from '../services/toastService';
+import { checkKey, Capabilities, Capability } from '../services/geminiService';
 
 interface ApiKeyModalProps {
   isOpen: boolean;
   initialKey: string;
   initialRemember: boolean;
   onClose: () => void;
-  onSave: (key: string, remember: boolean) => void;
+  caps: Capabilities | null;   // what the saved key can do (null: not checked yet)
+  onSave: (key: string, remember: boolean, caps: Capabilities) => void;
   onForget: () => void;
 }
 
-const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, initialKey, initialRemember, onClose, onSave, onForget }) => {
+const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, initialKey, initialRemember, caps, onClose, onSave, onForget }) => {
   const [key, setKey] = useState('');
   const [remember, setRemember] = useState(true);
   const [show, setShow] = useState(false);
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<Capabilities | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -25,8 +26,9 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, initialKey, initialRe
       setRemember(initialKey ? initialRemember : true);
       setShow(false);
       setError(null);
+      setResult(initialKey ? caps : null);
     }
-  }, [isOpen, initialKey, initialRemember]);
+  }, [isOpen, initialKey, initialRemember, caps]);
 
   if (!isOpen) return null;
 
@@ -36,9 +38,10 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, initialKey, initialRe
     setChecking(true);
     setError(null);
     try {
-      const models = await checkKey(k);
-      if (!models.video) showWarning(NO_VEO, 12000);
-      onSave(k, remember);
+      const c = await checkKey(k);
+      setResult(c);
+      onSave(k, remember, c);
+      if (c.animate.ok && c.edit.ok) onClose();
     } catch (e: any) {
       setError(e?.message || 'Could not check the key.');
     } finally {
@@ -62,7 +65,8 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, initialKey, initialRe
         <p className="text-sm text-slate-600 mb-4 leading-relaxed">
           AnimateImage runs in your browser with your own key. The key and your images go
           only to Google; there is no AnimateImage server. Use is billed to your Google
-          project, and video (Veo) needs billing turned on.
+          project; video and image editing need billing turned on (Google's free tier doesn't
+          include them).
         </p>
 
         {error && (
@@ -77,7 +81,7 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, initialKey, initialRe
             <input
               type={show ? 'text' : 'password'}
               value={key}
-              onChange={e => { setKey(e.target.value); setError(null); }}
+              onChange={e => { setKey(e.target.value); setError(null); setResult(null); }}
               onKeyDown={e => e.key === 'Enter' && handleSave()}
               placeholder="AIzaSy…"
               autoComplete="off"
@@ -98,6 +102,22 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, initialKey, initialRe
           </p>
         </div>
 
+        {result && (
+          <div className="mb-4 p-3 rounded-2xl border border-slate-100 bg-slate-50 space-y-2">
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+              What this key can do
+            </p>
+            <CapRow label="Animate (Gemini Omni video)" cap={result.animate} />
+            <CapRow label="Edit (Gemini image)" cap={result.edit} />
+            {!(result.animate.ok && result.edit.ok) && (
+              <p className="text-xs text-slate-500 pt-1">
+                <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-purple-500 hover:underline font-bold">Turn on billing in Google AI Studio</a>
+                {' '}for this key's project, then press Check again. Use is billed by Google, per <a href="https://ai.google.dev/gemini-api/docs/pricing" target="_blank" rel="noreferrer" className="text-purple-500 hover:underline">its pricing</a>.
+              </p>
+            )}
+          </div>
+        )}
+
         <label className="flex items-start gap-3 mb-6 cursor-pointer select-none">
           <input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)} className="mt-1 accent-purple-500" />
           <span className="text-sm text-slate-600">
@@ -117,14 +137,14 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, initialKey, initialRe
           ) : <span />}
           <div className="flex gap-3">
             <button onClick={onClose} className="px-5 py-2.5 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors font-bold text-sm">
-              Cancel
+              {result && key.trim() === initialKey ? 'Done' : 'Cancel'}
             </button>
             <button
               onClick={handleSave}
               disabled={!key.trim() || checking}
               className="px-6 py-2.5 bg-gradient-to-r from-cute-pink to-cute-purple hover:shadow-lg hover:shadow-pink-200 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-bold transition-all duration-300 hover:scale-105 active:scale-95"
             >
-              {checking ? 'Checking…' : 'Save'}
+              {checking ? 'Checking…' : result && key.trim() === initialKey ? 'Check again' : 'Save'}
             </button>
           </div>
         </div>
@@ -132,5 +152,17 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, initialKey, initialRe
     </div>
   );
 };
+
+const CapRow: React.FC<{ label: string; cap: Capability }> = ({ label, cap }) => (
+  <div className="flex items-start gap-2 text-sm">
+    <span className={`mt-0.5 w-5 h-5 shrink-0 rounded-full flex items-center justify-center text-xs font-bold ${cap.ok ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-500'}`}>
+      {cap.ok ? '✓' : '✕'}
+    </span>
+    <span className="text-slate-700">
+      <span className="font-bold">{label}</span>
+      {cap.why && <span className="text-slate-500">: {cap.why}</span>}
+    </span>
+  </div>
+);
 
 export default ApiKeyModal;
