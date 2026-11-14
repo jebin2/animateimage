@@ -5,8 +5,8 @@
 // Video: Gemini Omni Flash, through the Interactions API. (Veo was the Gemini
 // API's video model until its previews were shut down on 2026-10-22.)
 
-import { GoogleGenAI } from "@google/genai";
-import { ANIMATION_PROMPT } from "../prompts/animation";
+import { GoogleGenAI, ThinkingLevel } from "@google/genai";
+import { ANIMATION_PROMPT, LOOP_ANIMATION_PROMPT, buildVideoPrompt, buildEditPrompt, Sound } from "../prompts/animation";
 import { AspectRatio } from "../types";
 
 const API = "https://generativelanguage.googleapis.com/v1beta";
@@ -20,6 +20,7 @@ export interface VideoOptions extends GeminiOptions {
   aspectRatio: AspectRatio;
   loop: boolean;
   seconds: number;
+  sound: Sound;
 }
 
 /** Google's list price for Omni Flash video at 720p (Nov 2026), for the estimate shown before generating. */
@@ -178,11 +179,28 @@ export function friendlyError(error: unknown): Error {
   if (/SAFETY|blocked|responsible AI|RAI|PROHIBITED/i.test(msg)) {
     return new Error("Google's safety filters blocked this request. Try another image or description.");
   }
+  if (/\b503\b|UNAVAILABLE|high demand|overloaded/i.test(msg)) {
+    return new Error("Google's model is busy right now (high demand). Try again in a minute.");
+  }
   if (/Failed to fetch|NetworkError|network/i.test(msg)) {
     return new Error("Couldn't reach Google. Check your connection and try again.");
   }
   const m = msg.match(/"message"\s*:\s*"([^"]+)"/);
   return new Error(m ? m[1] : msg || "Something went wrong.");
+}
+
+/** Retries when Google is busy (503 "high demand"), which passes in seconds. */
+async function withRetry<T>(call: () => Promise<T>, onStatus?: (m: string) => void): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await call();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (attempt >= 2 || !/\b503\b|UNAVAILABLE|high demand|overloaded/i.test(msg)) throw e;
+      onStatus?.('Google is busy, trying again…');
+      await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
+    }
+  }
 }
 
 function imagePart(base64Image: string, mimeType: string) {
@@ -192,14 +210,16 @@ function imagePart(base64Image: string, mimeType: string) {
 // ---------- text and image ----------
 
 /** A short motion description for the image, used when the user leaves it empty. */
-export async function generateAnimationPrompt(base64Image: string, mimeType: string, options: GeminiOptions): Promise<string> {
+export async function generateAnimationPrompt(base64Image: string, mimeType: string, options: GeminiOptions & { loop?: boolean }): Promise<string> {
   options.onStatus?.('Looking at your image…');
   const models = await resolveModels(options.apiKey);
   try {
-    const response = await client(options.apiKey).models.generateContent({
+    const response = await withRetry(() => client(options.apiKey).models.generateContent({
       model: models.text,
-      contents: { parts: [imagePart(base64Image, mimeType), { text: ANIMATION_PROMPT }] },
-    });
+      contents: { parts: [imagePart(base64Image, mimeType), { text: options.loop ? LOOP_ANIMATION_PROMPT : ANIMATION_PROMPT }] },
+      // A short description doesn't need long thinking: ~3 s instead of 10–20 s.
+      config: { thinkingConfig: { thinkingLevel: "MINIMAL" as ThinkingLevel } },
+    }), options.onStatus);
     return response.text?.trim() || "Subtle cinematic movement";
   } catch (e) {
     throw friendlyError(e);
@@ -211,10 +231,10 @@ export async function editImage(base64Image: string, mimeType: string, prompt: s
   options.onStatus?.('Editing your image…');
   const models = await resolveModels(options.apiKey);
   try {
-    const response = await client(options.apiKey).models.generateContent({
+    const response = await withRetry(() => client(options.apiKey).models.generateContent({
       model: models.image,
-      contents: { parts: [imagePart(base64Image, mimeType), { text: prompt || "Enhance this image" }] },
-    });
+      contents: { parts: [imagePart(base64Image, mimeType), { text: buildEditPrompt(prompt) }] },
+    }), options.onStatus);
     for (const part of response.candidates?.[0]?.content?.parts ?? []) {
       if (part.inlineData?.data) {
         return `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`;
@@ -269,14 +289,12 @@ function findVideo(node: any): { data?: string; uri?: string; mime?: string } | 
   return null;
 }
 
-const LOOP_HINT = " The video loops seamlessly: it starts and ends on exactly this image, with no jump.";
 
 async function omniVideo(model: string, base64Image: string, mimeType: string, prompt: string, o: VideoOptions): Promise<VideoResult> {
   const image = { type: 'image', data: base64Image, mime_type: mimeType };
   // Loop: the same image as first and last frame (supported for 3–10 s).
-  const input = o.loop
-    ? [image, image, { type: 'text', text: prompt + LOOP_HINT }]
-    : [image, { type: 'text', text: prompt }];
+  const text = buildVideoPrompt(prompt, o.loop, o.sound);
+  const input = o.loop ? [image, image, { type: 'text', text }] : [image, { type: 'text', text }];
   o.onStatus?.('Gemini Omni is animating… this usually takes 1–3 minutes');
   let response: any;
   try {

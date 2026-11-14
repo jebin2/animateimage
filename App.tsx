@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { AppMode, ProcessingState, AspectRatio } from './types';
 import { editImage, generateVideo, generateAnimationPrompt, checkKey, Capabilities, VIDEO_SECONDS, VIDEO_USD_PER_SECOND } from './services/geminiService';
 import { loadKey, saveKey, forgetKey } from './services/keyStore';
+import { Sound, SOUND_LABELS } from './prompts/animation';
 import { UploadIcon, VideoIcon, WandIcon, TrashIcon, SparklesIcon, SettingsIcon, HeartIcon, DownloadIcon, RefreshIcon } from './components/Icons';
 import LoadingSpinner from './components/LoadingSpinner';
 import ApiKeyModal from './components/ApiKeyModal';
@@ -26,6 +27,7 @@ const App: React.FC = () => {
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('16:9');
   const [loop, setLoop] = useState<boolean>(true);
   const [seconds, setSeconds] = useState<number>(6);
+  const [sound, setSound] = useState<Sound>('ambient');
   const [caps, setCaps] = useState<Capabilities | null>(null);
   const [dragging, setDragging] = useState(false);
 
@@ -77,7 +79,7 @@ const App: React.FC = () => {
         let finalPrompt = prompt.trim();
         if (!finalPrompt) {
           try {
-            finalPrompt = await generateAnimationPrompt(selectedImage, mimeType, { apiKey: key, onStatus });
+            finalPrompt = await generateAnimationPrompt(selectedImage, mimeType, { apiKey: key, onStatus, loop });
             setPrompt(finalPrompt);
             setIsAutoPrompt(true);
           } catch (err) {
@@ -85,7 +87,7 @@ const App: React.FC = () => {
             finalPrompt = 'Subtle cinematic movement';
           }
         }
-        const { url, model, looped } = await generateVideo(selectedImage, mimeType, finalPrompt, { apiKey: key, aspectRatio, loop, seconds, onStatus });
+        const { url, model, looped } = await generateVideo(selectedImage, mimeType, finalPrompt, { apiKey: key, aspectRatio, loop, seconds, sound, onStatus });
         setResultVideo(url);
         setVideoInfo({ model, looped });
         if (loop && !looped) showWarning(`${model} can't make seamless loops, so this clip doesn't loop perfectly.`);
@@ -344,7 +346,7 @@ const App: React.FC = () => {
                     onChange={(e) => setPrompt(e.target.value)}
                     placeholder={mode === 'animate'
                       ? 'Describe the movement, or leave empty and Gemini will pick one…'
-                      : 'E.g. add a neon glow, remove the background…'
+                      : 'E.g. add a neon glow, remove the background… (empty: a gentle clean-up)'
                     }
                     className="w-full bg-white border border-slate-200 rounded-xl lg:rounded-2xl p-3 lg:p-4 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-pink-100 focus:border-pink-300 transition-all duration-300 resize-none h-24 lg:h-28 shadow-sm font-medium"
                   />
@@ -378,6 +380,18 @@ const App: React.FC = () => {
                       </button>
                     ))}
                     <span className="text-xs text-slate-500">≈ ${(seconds * VIDEO_USD_PER_SECOND).toFixed(2)} on your Google bill</span>
+                  </div>
+                  <div className="mt-3 ml-1 flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-extrabold text-slate-700 mr-1">Sound</span>
+                    {(Object.keys(SOUND_LABELS) as Sound[]).map(k => (
+                      <button
+                        key={k}
+                        onClick={() => setSound(k)}
+                        className={`px-3 py-1.5 rounded-lg border text-sm font-bold transition-all ${sound === k ? 'bg-pink-50 border-pink-200 text-pink-600' : 'bg-white border-slate-100 text-slate-600 hover:border-pink-200'}`}
+                      >
+                        {SOUND_LABELS[k]}
+                      </button>
+                    ))}
                   </div>
                 </div>
               )}

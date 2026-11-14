@@ -14,6 +14,11 @@ AnimateImage server, and your key and images go only to Google.
   Omni Flash, makes a 4, 6 or 8 second clip with sound, landscape (16:9) or
   portrait (9:16). Describe the motion, or
   leave it empty and Gemini looks at the picture and picks one.
+- **Sound:** natural ambience (default), calm music, or quiet. Never dialogue.
+- What you type (or Gemini's description) is wrapped in what the video model
+  needs, following Google's Omni prompt guide: one continuous shot with no cuts,
+  keep the image's scene and look, and the sound you picked
+  (`prompts/animation.ts`).
 - **Seamless loop** (on by default): your image is used as both the first and
   the last frame, so the clip ends where it started and repeats without a jump.
 - **Edit:** describe a change ("add a neon glow", "remove the background") and
