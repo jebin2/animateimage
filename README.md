@@ -49,4 +49,6 @@ npm run deploy     # build and publish dist/ to the gh-pages branch
 Plain React + Vite + the `@google/genai` SDK. The key is never built into the
 site; each person enters their own.
 
-If it's useful to you, [sponsoring on GitHub](https://github.com/sponsors/jebin2) is welcome.
+## License
+
+MIT. If it's useful to you, [sponsoring on GitHub](https://github.com/sponsors/jebin2) is welcome.
