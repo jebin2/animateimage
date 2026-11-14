@@ -4,7 +4,7 @@ Turn a photo into a short, seamlessly looping video, or edit it with a sentence,
 using your own Gemini API key. It runs entirely in your browser: there is no
 AnimateImage server, and your key and images go only to Google.
 
-**Try it: [voidall.com/animateimage](https://www.voidall.com/animateimage/)**
+**Try it: [animateimage.voidall.com](https://animateimage.voidall.com)**
 
 ![AnimateImage](public/image.png)
 
@@ -41,7 +41,7 @@ renamed or retired preview models don't break it.
 
 ```bash
 npm install
-npm run dev        # http://localhost:3001/animateimage/
+npm run dev        # http://localhost:3001/
 npm run build      # static site in dist/
 npm run deploy     # build and publish dist/ to the gh-pages branch
 ```
