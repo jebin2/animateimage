@@ -1,438 +1,229 @@
-// Dual-Mode Gemini AI Service
-// Client-side mode: Uses @google/genai directly (API key provided)
-// Server-side mode: Uses authenticated server API with job polling (credits mode)
-// STRICT RULE: API key NEVER sent to server
+// Talks to Google's Gemini API straight from the browser, with the user's own
+// API key. There is no server of ours in between: the key and the images go
+// only to Google (generativelanguage.googleapis.com).
 
 import { GoogleGenAI } from "@google/genai";
-import { getAccessToken, updateUserCredits } from "./googleAuthService";
-
-// ==================== Types ====================
-
-export type AspectRatio = '16:9' | '9:16';
-
-export interface GeminiServiceConfig {
-  apiBaseUrl: string;
-  defaultAnimationPrompt: string;
-}
+import { ANIMATION_PROMPT } from "../prompts/animation";
+import { AspectRatio } from "../types";
 
 export interface GeminiOptions {
-  apiKey?: string;           // If provided → client-side mode, NEVER hits server
-  useCredits?: boolean;      // If true → server-side mode with JWT
-  onStatus?: (message: string) => void;  // Progress callback
-  aspectRatio?: AspectRatio;
-  resolution?: '720p' | '1080p';
-  numberOfVideos?: number;
+  apiKey: string;
+  onStatus?: (message: string) => void;
 }
 
-interface JobResponse {
-  success: boolean;
-  job_id: string;
-  status: string;
-  position?: number;
-  credits_remaining?: number;
+export interface VideoOptions extends GeminiOptions {
+  aspectRatio: AspectRatio;
+  loop: boolean;
 }
 
-interface JobStatus {
-  status: 'queued' | 'processing' | 'completed' | 'failed' | 'cancelled';
-  position?: number;
-  started_at?: string;
-  output?: {
-    text?: string;
-    image?: string;
-    filename?: string;
-  };
-  download_url?: string;
-  error?: string;
-  credits_remaining?: number;
-  prompt?: string;
-}
-
-// ==================== Configuration ====================
-
-let CONFIG: GeminiServiceConfig = {
-  apiBaseUrl: '',
-  defaultAnimationPrompt: ''
-};
-
-export function configureGeminiService(config: Partial<GeminiServiceConfig>) {
-  if (config.apiBaseUrl !== undefined) CONFIG.apiBaseUrl = config.apiBaseUrl;
-  if (config.defaultAnimationPrompt !== undefined) CONFIG.defaultAnimationPrompt = config.defaultAnimationPrompt;
-}
-
-// Model names for client-side mode
-const MODELS = {
-  textGeneration: 'gemini-2.5-flash',
-  imageEdit: 'gemini-2.5-flash-image',
-  videoGeneration: 'veo-3.1-generate-preview'
+// Google renames and retires models (especially previews), so the app asks the
+// API which models this key can use and takes the first match from each list.
+// Newest and best first; add new names at the top.
+const PREFERRED = {
+  text: ['gemini-3.5-flash', 'gemini-3-flash', 'gemini-2.5-flash', 'gemini-flash-latest'],
+  image: ['gemini-3.1-flash-image', 'gemini-3.1-flash-lite-image', 'gemini-3.1-flash-image-preview', 'gemini-2.5-flash-image'],
+  video: ['veo-3.1-generate-001', 'veo-3.1-generate-preview', 'veo-3.1-fast-generate-001', 'veo-3.1-fast-generate-preview', 'veo-3.0-generate-001'],
 } as const;
 
-// Poll intervals by job type (milliseconds)
-const POLL_INTERVALS = {
-  fast: 3000,      // text, analyze, animation_prompt
-  medium: 10000,   // edit_image
-  slow: 15000      // video
-};
+type Kind = keyof typeof PREFERRED;
+export type Models = Record<Kind, string>;
 
-// ==================== Client-Side Helpers ====================
+const modelCache = new Map<string, Promise<Models>>();
 
-function getAIClient(apiKey: string): GoogleGenAI {
-  if (!apiKey) throw new Error("API Key is missing.");
+function client(apiKey: string): GoogleGenAI {
+  if (!apiKey) throw new Error("Add your Gemini API key in Settings first.");
   return new GoogleGenAI({ apiKey });
 }
 
-function handleClientError(error: any, context: string): never {
-  const msg = error.message || (typeof error === 'string' ? error : JSON.stringify(error));
-  if (msg.includes("404") || msg.includes("NOT_FOUND") || msg.includes("Requested entity was not found")) {
-    throw new Error(`Model not found (${context}). Ensure your API key has access to this model.`);
+async function listModelNames(ai: GoogleGenAI): Promise<Set<string>> {
+  const names = new Set<string>();
+  const pager = await ai.models.list({ config: { pageSize: 1000 } });
+  for await (const m of pager) {
+    if (m.name) names.add(m.name.replace(/^models\//, ''));
   }
-  throw error;
+  return names;
 }
 
-// ==================== Server-Side Helpers ====================
-
-async function serverFetch(endpoint: string, body: object): Promise<any> {
-  const token = getAccessToken();
-  if (!token) throw new Error("Not authenticated. Please sign in.");
-
-  const response = await fetch(`${CONFIG.apiBaseUrl}${endpoint}`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(body)
-  });
-
-  if (!response.ok) {
-    if (response.status === 401) throw new Error("Session expired. Please sign in again.");
-    if (response.status === 429) throw new Error("Rate limit exceeded. Please try again later.");
-    const errorData = await response.json().catch(() => ({ error: { message: 'Try again.' } }));
-    // Handle standardized error response: { success: false, error: { code, message, details } }
-    const errorMessage = errorData.error?.message || errorData.detail || 'Try again.';
-    throw new Error(errorMessage);
-  }
-
-  const data = await response.json();
-
-  // Update credits from response if available (after job creation, credits are reserved)
-  if (data.credits_remaining !== undefined) {
-    updateUserCredits(data.credits_remaining).catch(console.error);
-  }
-
-  return data;
-}
-
-async function pollJobStatus(
-  jobId: string,
-  interval: number,
-  onStatus?: (msg: string) => void
-): Promise<JobStatus> {
-  const token = getAccessToken();
-  if (!token) throw new Error("Not authenticated.");
-
-  while (true) {
-    const response = await fetch(`${CONFIG.apiBaseUrl}/gemini/job/${jobId}`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-
-    if (!response.ok) {
-      if (response.status === 401) throw new Error("Session expired. Please sign in again.");
-      if (response.status === 404) throw new Error("Job not found.");
-      const errorData = await response.json().catch(() => ({ error: { message: 'Try again.' } }));
-      const errorMessage = errorData.error?.message || 'Try again.';
-      throw new Error(errorMessage);
-    }
-
-    const status: JobStatus = await response.json();
-
-    // Update credits from response if available
-    if (status.credits_remaining !== undefined) {
-      updateUserCredits(status.credits_remaining).catch(console.error);
-    }
-
-    if (status.status === 'queued') {
-      onStatus?.(`Queued (position: ${status.position || '?'})...`);
-    } else if (status.status === 'processing') {
-      onStatus?.('Processing...');
-    } else if (status.status === 'completed') {
-      onStatus?.('Completed!');
-      return status;
-    } else if (status.status === 'failed') {
-      throw new Error(status.error || 'Job failed');
-    } else if (status.status === 'cancelled') {
-      throw new Error('Job was cancelled');
-    }
-
-    await new Promise(r => setTimeout(r, interval));
-  }
-}
-
-async function downloadServerVideo(jobId: string): Promise<string> {
-  const token = getAccessToken();
-  if (!token) throw new Error("Not authenticated.");
-
-  const response = await fetch(`${CONFIG.apiBaseUrl}/gemini/download/${jobId}`, {
-    headers: { 'Authorization': `Bearer ${token}` }
-  });
-
-  if (!response.ok) throw new Error("Failed to download video");
-
-  const blob = await response.blob();
-  return URL.createObjectURL(blob);
-}
-
-// ==================== Mode Detection ====================
-
-function isClientMode(options: GeminiOptions): boolean {
-  // API key takes priority - if provided, ALWAYS use client mode
-  return !!options.apiKey;
-}
-
-// ==================== Public API ====================
-
-/**
- * Generate animation prompt from image
- */
-export async function generateAnimationPrompt(
-  base64Image: string,
-  mimeType: string,
-  options: GeminiOptions = {}
-): Promise<string> {
-  if (isClientMode(options)) {
-    // CLIENT MODE - Direct Gemini API
-    options.onStatus?.('Analyzing image...');
-    try {
-      const ai = getAIClient(options.apiKey!);
-      const response = await ai.models.generateContent({
-        model: MODELS.textGeneration,
-        contents: {
-          parts: [
-            { inlineData: { data: base64Image, mimeType } },
-            { text: CONFIG.defaultAnimationPrompt }
-          ]
-        }
-      });
-      options.onStatus?.('Done!');
-      return response.text || "Cinematic subtle movement";
-    } catch (error) {
-      return handleClientError(error, MODELS.textGeneration);
-    }
-  } else {
-    // SERVER MODE - Job queue with polling
-    options.onStatus?.('Submitting to server...');
-    const job: JobResponse = await serverFetch('/gemini/generate-animation-prompt', {
-      base64_image: base64Image,
-      mime_type: mimeType
-    });
-
-    const result = await pollJobStatus(job.job_id, POLL_INTERVALS.fast, options.onStatus);
-    return result.output?.text || "Cinematic subtle movement";
-  }
-}
-
-/**
- * Edit an image using AI
- */
-export async function editImage(
-  base64Image: string,
-  mimeType: string,
-  prompt: string,
-  options: GeminiOptions = {}
-): Promise<string> {
-  if (isClientMode(options)) {
-    // CLIENT MODE - Direct Gemini API
-    options.onStatus?.('Editing image...');
-    try {
-      const ai = getAIClient(options.apiKey!);
-      const response = await ai.models.generateContent({
-        model: MODELS.imageEdit,
-        contents: {
-          parts: [
-            { inlineData: { data: base64Image, mimeType } },
-            { text: prompt || "Enhance this image" }
-          ]
-        }
-      });
-
-      const candidates = response.candidates;
-      if (!candidates || candidates.length === 0) {
-        throw new Error("No candidates returned from Gemini.");
+/** The models this key will use, picked from what the key can actually see. */
+export function resolveModels(apiKey: string): Promise<Models> {
+  let p = modelCache.get(apiKey);
+  if (!p) {
+    p = (async () => {
+      let available: Set<string> | null = null;
+      try {
+        available = await listModelNames(client(apiKey));
+      } catch (e) {
+        throw friendlyError(e);
       }
+      const pick = (kind: Kind, family: RegExp): string => {
+        const wanted = PREFERRED[kind].find(n => available!.has(n));
+        if (wanted) return wanted;
+        // Nothing from the list: the newest-looking model of the same family.
+        const any = [...available!].filter(n => family.test(n)).sort().reverse()[0];
+        return any || PREFERRED[kind][0];
+      };
+      return {
+        text: pick('text', /^gemini-[\d.]+-flash$/),
+        image: pick('image', /^gemini-[\d.]+-flash(-lite)?-image/),
+        video: pick('video', /^veo-/),
+      };
+    })();
+    p.catch(() => modelCache.delete(apiKey));
+    modelCache.set(apiKey, p);
+  }
+  return p;
+}
 
-      for (const part of candidates[0].content.parts) {
-        if (part.inlineData && part.inlineData.data) {
-          options.onStatus?.('Done!');
-          return `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`;
-        }
-      }
-      throw new Error("No image data found in the response.");
-    } catch (error) {
-      return handleClientError(error, MODELS.imageEdit);
-    }
-  } else {
-    // SERVER MODE - Job queue with polling
-    options.onStatus?.('Submitting to server...');
-    const job: JobResponse = await serverFetch('/gemini/edit-image', {
-      base64_image: base64Image,
-      mime_type: mimeType,
-      prompt
+/** Checks a key by listing models with it. Throws a readable error if it fails. */
+export async function checkKey(apiKey: string): Promise<Models> {
+  modelCache.delete(apiKey);
+  return resolveModels(apiKey);
+}
+
+/** Turns API errors into something a person can act on. */
+export function friendlyError(error: unknown): Error {
+  const msg = error instanceof Error ? error.message : typeof error === 'string' ? error : JSON.stringify(error);
+  if (/API key not valid|API_KEY_INVALID|UNAUTHENTICATED|401/i.test(msg)) {
+    return new Error("Google rejected this API key. Check it in Settings.");
+  }
+  if (/billing|requires a paid|FAILED_PRECONDITION|PERMISSION_DENIED|403/i.test(msg)) {
+    return new Error("This key's project can't use this model. Video (Veo) needs billing turned on for the project in Google AI Studio.");
+  }
+  if (/RESOURCE_EXHAUSTED|quota|429/i.test(msg)) {
+    return new Error("Your key hit its quota or rate limit. Wait a minute, or check your limits in Google AI Studio.");
+  }
+  if (/NOT_FOUND|404|not found/i.test(msg)) {
+    return new Error("Google says the model wasn't found for this key. It may have been renamed; reload the page to pick again.");
+  }
+  if (/SAFETY|blocked|responsible AI|RAI/i.test(msg)) {
+    return new Error("Google's safety filters blocked this request. Try another image or description.");
+  }
+  if (/Failed to fetch|NetworkError|network/i.test(msg)) {
+    return new Error("Couldn't reach Google. Check your connection and try again.");
+  }
+  return new Error(msg || "Something went wrong.");
+}
+
+function imagePart(base64Image: string, mimeType: string) {
+  return { inlineData: { data: base64Image, mimeType } };
+}
+
+/** A short motion description for the image, used when the user leaves it empty. */
+export async function generateAnimationPrompt(base64Image: string, mimeType: string, options: GeminiOptions): Promise<string> {
+  options.onStatus?.('Looking at your image…');
+  const models = await resolveModels(options.apiKey);
+  try {
+    const response = await client(options.apiKey).models.generateContent({
+      model: models.text,
+      contents: { parts: [imagePart(base64Image, mimeType), { text: ANIMATION_PROMPT }] },
     });
-
-    const result = await pollJobStatus(job.job_id, POLL_INTERVALS.medium, options.onStatus);
-    if (result.output?.image) {
-      return result.output.image;
-    }
-    throw new Error("No image returned from server");
+    return response.text?.trim() || "Subtle cinematic movement";
+  } catch (e) {
+    throw friendlyError(e);
   }
 }
 
+/** Edits the image as described; returns a data: URL. */
+export async function editImage(base64Image: string, mimeType: string, prompt: string, options: GeminiOptions): Promise<string> {
+  options.onStatus?.('Editing your image…');
+  const models = await resolveModels(options.apiKey);
+  try {
+    const response = await client(options.apiKey).models.generateContent({
+      model: models.image,
+      contents: { parts: [imagePart(base64Image, mimeType), { text: prompt || "Enhance this image" }] },
+    });
+    for (const part of response.candidates?.[0]?.content?.parts ?? []) {
+      if (part.inlineData?.data) {
+        return `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`;
+      }
+    }
+    const reason = response.candidates?.[0]?.finishReason || response.promptFeedback?.blockReason;
+    throw new Error(reason ? `No image returned (${reason}).` : "No image returned. Try rewording the instructions.");
+  } catch (e) {
+    throw friendlyError(e);
+  }
+}
+
+/** Fetches the finished video into memory, so it can be played and saved without the key in a URL. */
+async function fetchVideo(uri: string, apiKey: string): Promise<Blob> {
+  // Header first (keeps the key out of the URL); some redirects need the query form.
+  const attempts: [string, RequestInit][] = [
+    [uri, { headers: { 'x-goog-api-key': apiKey } }],
+    [`${uri}${uri.includes('?') ? '&' : '?'}key=${encodeURIComponent(apiKey)}`, {}],
+  ];
+  let last: unknown;
+  for (const [url, init] of attempts) {
+    try {
+      const res = await fetch(url, init);
+      if (res.ok) return await res.blob();
+      last = new Error(`Download failed (HTTP ${res.status})`);
+    } catch (e) {
+      last = e;
+    }
+  }
+  throw friendlyError(last);
+}
+
 /**
- * Generate a video from image
+ * Animates the image with Veo. With `loop`, the image is also the last frame,
+ * so the clip ends where it started and repeats without a jump.
+ * Returns a blob: URL of the MP4.
  */
 export async function generateVideo(
   base64Image: string,
   mimeType: string,
   prompt: string,
-  options: GeminiOptions = {}
-): Promise<{ url: string; jobId?: string; prompt?: string }> {
-  const aspectRatio = options.aspectRatio || '16:9';
-  const resolution = options.resolution || '720p';
-  const numberOfVideos = options.numberOfVideos || 1;
+  options: VideoOptions,
+): Promise<{ url: string; blob: Blob; model: string; looped: boolean }> {
+  const { apiKey, aspectRatio, onStatus } = options;
+  const models = await resolveModels(apiKey);
+  const ai = client(apiKey);
+  const image = { imageBytes: base64Image, mimeType };
 
-  if (isClientMode(options)) {
-    // CLIENT MODE - Direct Gemini API with polling
-    options.onStatus?.('Starting video generation...');
-    const ai = getAIClient(options.apiKey!);
+  const start = (loop: boolean) => ai.models.generateVideos({
+    model: models.video,
+    prompt,
+    image,
+    config: { numberOfVideos: 1, aspectRatio, ...(loop ? { lastFrame: image } : {}) },
+  });
 
-    let operation;
-    try {
-      operation = await ai.models.generateVideos({
-        model: MODELS.videoGeneration,
-        prompt,
-        image: { imageBytes: base64Image, mimeType },
-        config: { numberOfVideos, resolution, aspectRatio }
-      });
-    } catch (error) {
-      return handleClientError(error, MODELS.videoGeneration);
+  onStatus?.('Sending to Veo…');
+  let looped = options.loop;
+  let operation;
+  try {
+    operation = await start(looped);
+  } catch (e) {
+    // Older Veo models don't take a last frame: still make the video.
+    const msg = e instanceof Error ? e.message : String(e);
+    if (looped && /last_?frame|lastFrame|not supported|INVALID_ARGUMENT/i.test(msg)) {
+      looped = false;
+      operation = await start(false).catch(err => { throw friendlyError(err); });
+    } else {
+      throw friendlyError(e);
     }
-
-    // Client-side polling
-    while (!operation.done) {
-      options.onStatus?.('Generating video (this may take 1-2 minutes)...');
-      await new Promise(r => setTimeout(r, 10000));
-      try {
-        operation = await ai.operations.getVideosOperation({ operation });
-      } catch (error: any) {
-        const msg = error.message || '';
-        if (msg.includes("404") || msg.includes("NOT_FOUND")) {
-          throw new Error("Video generation operation lost. Please try again.");
-        }
-        throw error;
-      }
-    }
-
-    if (operation.error) {
-      throw new Error(`Video generation failed: ${operation.error.message || 'Unknown error'}`);
-    }
-
-    const videoUri = operation.response?.generatedVideos?.[0]?.video?.uri;
-    if (!videoUri) {
-      throw new Error("No video URI returned. May be due to safety filters.");
-    }
-
-    options.onStatus?.('Done!');
-    return { url: `${videoUri}&key=${options.apiKey}` };
-  } else {
-    // SERVER MODE - Job queue with polling
-    options.onStatus?.('Submitting to server...');
-    const job: JobResponse = await serverFetch('/gemini/generate-video', {
-      base64_image: base64Image,
-      mime_type: mimeType,
-      prompt,
-      aspect_ratio: aspectRatio,
-      resolution,
-      number_of_videos: numberOfVideos
-    });
-
-    const result = await pollJobStatus(job.job_id, POLL_INTERVALS.slow, options.onStatus);
-
-    // Download video and return blob URL
-    options.onStatus?.('Downloading video...');
-    const url = await downloadServerVideo(job.job_id);
-    return { url, jobId: job.job_id, prompt: result.prompt };
   }
-}
 
-/**
- * Generate text response
- */
-export async function generateText(
-  prompt: string,
-  options: GeminiOptions = {}
-): Promise<string> {
-  if (isClientMode(options)) {
-    // CLIENT MODE
-    options.onStatus?.('Generating...');
+  onStatus?.('Veo is animating… this usually takes 1–3 minutes');
+  while (!operation.done) {
+    await new Promise(r => setTimeout(r, 10_000));
     try {
-      const ai = getAIClient(options.apiKey!);
-      const response = await ai.models.generateContent({
-        model: MODELS.textGeneration,
-        contents: { parts: [{ text: prompt }] }
-      });
-      options.onStatus?.('Done!');
-      return response.text || "";
-    } catch (error) {
-      return handleClientError(error, MODELS.textGeneration);
+      operation = await ai.operations.getVideosOperation({ operation });
+    } catch (e) {
+      throw friendlyError(e);
     }
-  } else {
-    // SERVER MODE
-    options.onStatus?.('Submitting to server...');
-    const job: JobResponse = await serverFetch('/gemini/generate-text', { prompt });
-    const result = await pollJobStatus(job.job_id, POLL_INTERVALS.fast, options.onStatus);
-    return result.output?.text || "";
   }
-}
 
-/**
- * Analyze image with custom prompt
- */
-export async function analyzeImage(
-  base64Image: string,
-  mimeType: string,
-  prompt: string,
-  options: GeminiOptions = {}
-): Promise<string> {
-  if (isClientMode(options)) {
-    // CLIENT MODE
-    options.onStatus?.('Analyzing...');
-    try {
-      const ai = getAIClient(options.apiKey!);
-      const response = await ai.models.generateContent({
-        model: MODELS.textGeneration,
-        contents: {
-          parts: [
-            { inlineData: { data: base64Image, mimeType } },
-            { text: prompt }
-          ]
-        }
-      });
-      options.onStatus?.('Done!');
-      return response.text || "";
-    } catch (error) {
-      return handleClientError(error, MODELS.textGeneration);
-    }
-  } else {
-    // SERVER MODE
-    options.onStatus?.('Submitting to server...');
-    const job: JobResponse = await serverFetch('/gemini/analyze-image', {
-      base64_image: base64Image,
-      mime_type: mimeType,
-      prompt
-    });
-    const result = await pollJobStatus(job.job_id, POLL_INTERVALS.fast, options.onStatus);
-    return result.output?.text || "";
+  if (operation.error) {
+    throw friendlyError(String(operation.error.message || 'Video generation failed'));
   }
-}
+  const response = operation.response;
+  const uri = response?.generatedVideos?.[0]?.video?.uri;
+  if (!uri) {
+    const why = response?.raiMediaFilteredReasons?.[0];
+    throw new Error(why ? `Google's safety filters blocked the video: ${why}` : "No video came back. Google's safety filters may have blocked it; try another image or description.");
+  }
 
-// Export for reference
-export { MODELS };
+  onStatus?.('Downloading the video…');
+  const blob = await fetchVideo(uri, apiKey);
+  return { url: URL.createObjectURL(blob), blob, model: models.video, looped };
+}

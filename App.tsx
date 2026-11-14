@@ -1,247 +1,161 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { AppMode, ProcessingState, AspectRatio } from './types';
-import { editImage, generateVideo, generateAnimationPrompt, GeminiOptions } from './services/geminiService';
-import { initUsage, recordUsage } from './services/usageService';
-import { UploadIcon, VideoIcon, WandIcon, TrashIcon, AlertCircleIcon, SparklesIcon, SettingsIcon, HeartIcon, DownloadIcon } from './components/Icons';
-import { videoStorageService } from './services/videoStorageService';
-import CustomGoogleSignInButton from './components/CustomGoogleSignInButton';
+import { editImage, generateVideo, generateAnimationPrompt } from './services/geminiService';
+import { loadKey, saveKey, forgetKey } from './services/keyStore';
+import { UploadIcon, VideoIcon, WandIcon, TrashIcon, SparklesIcon, SettingsIcon, HeartIcon, DownloadIcon, RefreshIcon } from './components/Icons';
 import LoadingSpinner from './components/LoadingSpinner';
 import ApiKeyModal from './components/ApiKeyModal';
-import UserProfileMenu from './components/UserProfileMenu';
 import ToastContainer from './components/ToastContainer';
-import { showError } from './services/toastService';
-import { GoogleUser, initializeAuth, initGoogleAuth, onAuthStateChange, isAuthenticated } from './services/googleAuthService';
+import { showError, showWarning } from './services/toastService';
 
+// Gemini takes images inline in the request, which is capped at 20 MB.
+const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
 
 const App: React.FC = () => {
   const [apiKey, setApiKey] = useState<string>('');
+  const [rememberKey, setRememberKey] = useState<boolean>(true);
   const [showApiKeyModal, setShowApiKeyModal] = useState<boolean>(false);
-  const [modalError, setModalError] = useState<string>('');
   const [pendingAutoGenerate, setPendingAutoGenerate] = useState<boolean>(false);
 
-  const [mode, setMode] = useState<AppMode>('animate'); // Default to animate (Veo) as per user request
+  const [mode, setMode] = useState<AppMode>('animate');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [mimeType, setMimeType] = useState<string>('');
+  const [fileName, setFileName] = useState<string>('image');
   const [prompt, setPrompt] = useState<string>('');
-  const [isAutoPrompt, setIsAutoPrompt] = useState<boolean>(false); // Track if prompt was AI generated
+  const [isAutoPrompt, setIsAutoPrompt] = useState<boolean>(false);
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('16:9');
+  const [loop, setLoop] = useState<boolean>(true);
+  const [dragging, setDragging] = useState(false);
 
-  const [processing, setProcessing] = useState<ProcessingState>({
-    isLoading: false,
-    statusMessage: '',
-  });
+  const [processing, setProcessing] = useState<ProcessingState>({ isLoading: false, statusMessage: '' });
+  const [startedAt, setStartedAt] = useState<number | null>(null);
+  const [elapsed, setElapsed] = useState(0);
 
   const [resultImage, setResultImage] = useState<string | null>(null);
   const [resultVideo, setResultVideo] = useState<string | null>(null);
-  const [currentJobId, setCurrentJobId] = useState<string | null>(null);
-  const [isDownloading, setIsDownloading] = useState(false);
+  const [videoInfo, setVideoInfo] = useState<{ model: string; looped: boolean } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Auth state
-  const [user, setUser] = useState<GoogleUser | null>(null);
-  const [authLoading, setAuthLoading] = useState(true);
-
-  // Load API key from local storage on mount and init usage and auth
   useEffect(() => {
-    const storedKey = localStorage.getItem('gemini_api_key');
-    if (storedKey) {
-      setApiKey(storedKey);
-    }
-
-    // Initialize usage
-    initUsage().catch(console.error);
-
-    // Initialize auth
-    const initAuth = async () => {
-      try {
-        const authenticatedUser = await initializeAuth();
-        if (authenticatedUser) {
-          setUser(authenticatedUser);
-        }
-      } catch (error) {
-        console.error('Auth initialization failed:', error);
-      } finally {
-        setAuthLoading(false);
-      }
-    };
-    initAuth();
-
-    // Subscribe to auth state changes
-    const unsubscribe = onAuthStateChange((newUser) => {
-      setUser(newUser);
-    });
-
-    return () => unsubscribe();
+    const { key, remembered } = loadKey();
+    setApiKey(key);
+    setRememberKey(remembered || !key);
   }, []);
 
-  // Render Google button when not authenticated and container is available
-  // Removed direct renderGoogleButton effect as it's now handled by CustomGoogleSignInButton
+  // Seconds counter while waiting (Veo takes minutes).
+  useEffect(() => {
+    if (startedAt === null) return;
+    const t = setInterval(() => setElapsed(Math.floor((Date.now() - startedAt) / 1000)), 1000);
+    return () => clearInterval(t);
+  }, [startedAt]);
 
-  const executeGeneration = async (options: GeminiOptions) => {
-    // Reset previous results
-    setResultImage(null);
+  // Free the previous video's memory when it's replaced.
+  useEffect(() => () => { if (resultVideo) URL.revokeObjectURL(resultVideo); }, [resultVideo]);
+
+  const resetResults = () => {
     setResultImage(null);
     setResultVideo(null);
-    setCurrentJobId(null);
-    setProcessing({ isLoading: true, statusMessage: 'Initializing...' });
-    setModalError('');
+    setVideoInfo(null);
+  };
 
-    // Status callback to update UI
-    const onStatus = (message: string) => {
-      setProcessing(prev => ({ ...prev, statusMessage: message }));
-    };
+  const executeGeneration = async (key: string) => {
+    if (!selectedImage) return;
+    resetResults();
+    setProcessing({ isLoading: true, statusMessage: 'Starting…' });
+    setElapsed(0);
+    setStartedAt(Date.now());
+    const onStatus = (message: string) => setProcessing(prev => ({ ...prev, statusMessage: message }));
 
     try {
       if (mode === 'edit') {
-        const editedImageBase64 = await editImage(selectedImage!, mimeType, prompt, { ...options, onStatus });
-        setResultImage(editedImageBase64);
-        recordUsage('generate_success', mode).catch(console.error);
-        setProcessing({ isLoading: false, statusMessage: 'Done!' });
-        // Credits are updated automatically from API response in geminiService
+        setResultImage(await editImage(selectedImage, mimeType, prompt, { apiKey: key, onStatus }));
       } else {
-        // Animation Logic
-        let finalPrompt = prompt;
-
-        // If prompt is empty, generate it using Gemini Vision (only for Client Mode)
-        // For Credit Mode, we send empty prompt and let server generate it
-        if (!finalPrompt.trim() && !options.useCredits) {
+        let finalPrompt = prompt.trim();
+        if (!finalPrompt) {
           try {
-            finalPrompt = await generateAnimationPrompt(selectedImage!, mimeType, { ...options, onStatus });
+            finalPrompt = await generateAnimationPrompt(selectedImage, mimeType, { apiKey: key, onStatus });
             setPrompt(finalPrompt);
             setIsAutoPrompt(true);
           } catch (err) {
-            console.warn("Failed to generate prompt", err);
-            finalPrompt = "Animate this image with cinematic movement";
-            setPrompt(finalPrompt);
+            console.warn('Auto description failed', err);
+            finalPrompt = 'Subtle cinematic movement';
           }
         }
-
-        const { url, jobId, prompt: jobPrompt } = await generateVideo(selectedImage!, mimeType, finalPrompt, {
-          ...options,
-          aspectRatio,
-          onStatus
-        });
+        const { url, model, looped } = await generateVideo(selectedImage, mimeType, finalPrompt, { apiKey: key, aspectRatio, loop, onStatus });
         setResultVideo(url);
-        if (jobId) {
-          setCurrentJobId(jobId);
-        }
-        if (jobPrompt) {
-          setPrompt(jobPrompt);
-          setIsAutoPrompt(true); // Assuming if it comes back from server it might be auto-generated or refined
-        }
-        recordUsage('generate_success', mode).catch(console.error);
-        setProcessing({ isLoading: false, statusMessage: 'Done!' });
-        // Credits are updated automatically from API response in geminiService
+        setVideoInfo({ model, looped });
+        if (loop && !looped) showWarning(`${model} can't make seamless loops, so this clip doesn't loop perfectly.`);
       }
     } catch (error: any) {
       console.error(error);
-
-      // Record failure
-      recordUsage('generate_failure', mode).catch(() => { });
-
-      const errorMsg = error.message || (typeof error === 'string' ? error : JSON.stringify(error));
-
-      const isAuthOrNotFoundError =
-        errorMsg.includes("API key") ||
-        errorMsg.includes("403") ||
-        errorMsg.includes("400") ||
-        errorMsg.includes("404") ||
-        errorMsg.includes("NOT_FOUND") ||
-        errorMsg.includes("Requested entity was not found") ||
-        errorMsg.includes("Model not found") ||
-        errorMsg.includes("requires a paid account") ||
-        errorMsg.includes("UNAUTHENTICATED") ||
-        errorMsg.includes("[5,");
-
-      if (isAuthOrNotFoundError) {
-        setProcessing({ isLoading: false, statusMessage: '' });
-
-        let friendlyMsg = errorMsg;
-        if (errorMsg.includes("404") || errorMsg.includes("NOT_FOUND") || errorMsg.includes("Requested entity was not found") || errorMsg.includes("[5,")) {
-          friendlyMsg = "Model or resource not found. This usually means your API Key does not have access to the required models (Requires Paid Project).";
-        }
-
-        // Show error as toast instead of opening modal
-        showError(friendlyMsg);
-      } else {
-        setProcessing({
-          isLoading: false,
-          statusMessage: '',
-        });
-        showError(errorMsg || "An unexpected error occurred.");
-      }
+      const message: string = error?.message || 'Something went wrong.';
+      showError(message);
+      if (/API key/.test(message)) setShowApiKeyModal(true);
+    } finally {
+      setProcessing({ isLoading: false, statusMessage: '' });
+      setStartedAt(null);
     }
   };
 
-  const handleApiKeySubmit = (key: string) => {
-    // Handle credit system marker
-    if (key === 'USE_CREDITS') {
-      // User chose to use credits
-      setShowApiKeyModal(false);
-      setModalError('');
-
-      // Auto-generate if pending and user is signed in
-      if (pendingAutoGenerate && selectedImage && user) {
-        setPendingAutoGenerate(false);
-        executeGeneration({ useCredits: true });
-      }
-      return;
-    }
-
+  const handleKeySave = (key: string, remember: boolean) => {
+    saveKey(key, remember);
     setApiKey(key);
-    localStorage.setItem('gemini_api_key', key); // Persist key
+    setRememberKey(remember);
     setShowApiKeyModal(false);
-    setModalError('');
-
-    // Auto-generate if it was pending
     if (pendingAutoGenerate && selectedImage) {
       setPendingAutoGenerate(false);
-      executeGeneration({ apiKey: key });
+      executeGeneration(key);
     }
+  };
+
+  const handleKeyForget = () => {
+    forgetKey();
+    setApiKey('');
+    setRememberKey(true);
   };
 
   const openSettings = () => {
-    setModalError('');
     setPendingAutoGenerate(false);
     setShowApiKeyModal(true);
   };
 
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      if (!file.type.startsWith('image/')) {
-        alert("Please upload a valid image file.");
-        return;
-      }
-
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const result = reader.result as string;
-        const base64Data = result.split(',')[1];
-        setSelectedImage(base64Data);
-        setMimeType(file.type);
-        setResultImage(null);
-        setResultVideo(null);
-      };
-      reader.readAsDataURL(file);
+  const loadFile = (file: File | null | undefined) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      showError("That file isn't an image. Use a JPG, PNG or WebP.");
+      return;
     }
+    if (file.size > MAX_IMAGE_BYTES) {
+      showError('That image is over 15 MB. Use a smaller one.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const result = reader.result as string;
+      setSelectedImage(result.split(',')[1]);
+      setMimeType(file.type);
+      setFileName(file.name.replace(/\.[^.]+$/, '') || 'image');
+      resetResults();
+      if (isAutoPrompt) { setPrompt(''); setIsAutoPrompt(false); }
+    };
+    reader.readAsDataURL(file);
   };
 
+  // Paste an image from the clipboard anywhere on the page.
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      const item = [...(e.clipboardData?.items || [])].find(i => i.type.startsWith('image/'));
+      if (item) loadFile(item.getAsFile());
+    };
+    window.addEventListener('paste', onPaste);
+    return () => window.removeEventListener('paste', onPaste);
+  });
+
   const handleGenerateClick = () => {
-    if (!selectedImage) return;
-
-    // Record generate click
-    recordUsage('generate_click', mode).catch(console.error);
-
-    // Priority: API key > Credits > Show modal
+    if (!selectedImage || processing.isLoading) return;
     if (apiKey) {
-      // Use API key (client-side mode)
-      executeGeneration({ apiKey });
-    } else if (user) {
-      // Use credits (server-side mode)
-      executeGeneration({ useCredits: true });
+      executeGeneration(apiKey);
     } else {
-      // No auth - show modal
       setPendingAutoGenerate(true);
       setShowApiKeyModal(true);
     }
@@ -250,29 +164,52 @@ const App: React.FC = () => {
   const clearAll = () => {
     setSelectedImage(null);
     setMimeType('');
-    setResultImage(null);
-    setResultImage(null);
-    setResultVideo(null);
-    setCurrentJobId(null);
+    resetResults();
     setPrompt('');
     setIsAutoPrompt(false);
-    setProcessing({ isLoading: false, statusMessage: '' });
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const switchMode = (newMode: AppMode) => {
     setMode(newMode);
+    if (isAutoPrompt) setPrompt('');
     setIsAutoPrompt(false);
   };
 
+  const elapsedText = `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, '0')}`;
+
+  const modeButton = (m: AppMode, Icon: React.FC<{ className?: string }>, label: string) => (
+    <button
+      onClick={() => switchMode(m)}
+      className={`px-2 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold transition-all duration-300 hover:scale-105 active:scale-95 ${mode === m
+        ? 'bg-gradient-to-r from-cute-pink to-cute-purple text-white shadow-md shadow-pink-200'
+        : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
+        }`}
+    >
+      <span className="flex items-center gap-1 sm:gap-2">
+        <Icon className="w-4 h-4" />
+        <span className="hidden sm:inline">{label}</span>
+      </span>
+    </button>
+  );
+
+  const ratioButton = (r: AspectRatio, label: string) => (
+    <button
+      onClick={() => setAspectRatio(r)}
+      className={`py-2.5 lg:py-3 px-4 rounded-xl border text-sm font-bold transition-all duration-300 hover:scale-105 active:scale-95 ${aspectRatio === r
+        ? 'bg-pink-50 border-pink-200 text-pink-600 shadow-inner'
+        : 'bg-white border-slate-100 text-slate-600 hover:border-pink-200 hover:text-pink-500'
+        }`}
+    >
+      {label}
+    </button>
+  );
+
   return (
-    <div className="min-h-screen max-h-screen bg-transparent text-slate-700 font-sans selection:bg-cute-pink selection:text-pink-900 relative flex flex-col">
+    <div className="min-h-screen bg-transparent text-slate-700 font-sans selection:bg-cute-pink selection:text-pink-900 relative flex flex-col">
       {/* Header */}
       <header className="border-b border-white/20 bg-white/60 backdrop-blur-md sticky top-0 z-50 shadow-sm">
-        <div className="w-[95%] lg:w-[90%] mx-auto py-2 sm:py-0 sm:h-16 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2">
-          {/* Logo - Hidden on very small screens, shown on sm+ */}
+        <div className="w-[95%] lg:w-[90%] mx-auto py-2 sm:py-0 sm:h-16 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 shrink-0">
             <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-tr from-cute-pink to-cute-purple rounded-xl sm:rounded-2xl rotate-3 flex items-center justify-center shadow-lg shadow-pink-200/50 transition-all duration-500 hover:rotate-12 hover:scale-110">
               <SparklesIcon className="w-5 h-5 sm:w-6 sm:h-6 text-white drop-shadow-sm" />
@@ -282,37 +219,12 @@ const App: React.FC = () => {
             </span>
           </div>
 
-          {/* Right side controls */}
           <div className="flex items-center gap-2 sm:gap-4 flex-1 justify-end">
-            {/* Mode Toggle */}
             <div className="flex items-center gap-1 bg-white/50 p-1 sm:p-1.5 rounded-full border border-white/50 shadow-inner">
-              <button
-                onClick={() => switchMode('animate')}
-                className={`px-2 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold transition-all duration-300 hover:scale-105 active:scale-95 ${mode === 'animate'
-                  ? 'bg-gradient-to-r from-cute-pink to-cute-purple text-white shadow-md shadow-pink-200'
-                  : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
-                  }`}
-              >
-                <span className="flex items-center gap-1 sm:gap-2">
-                  <VideoIcon className="w-4 h-4" />
-                  <span className="hidden sm:inline">Animate</span>
-                </span>
-              </button>
-              <button
-                onClick={() => switchMode('edit')}
-                className={`px-2 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold transition-all duration-300 hover:scale-105 active:scale-95 ${mode === 'edit'
-                  ? 'bg-gradient-to-r from-cute-pink to-cute-purple text-white shadow-md shadow-pink-200'
-                  : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
-                  }`}
-              >
-                <span className="flex items-center gap-1 sm:gap-2">
-                  <WandIcon className="w-4 h-4" />
-                  <span className="hidden sm:inline">Edit</span>
-                </span>
-              </button>
+              {modeButton('animate', VideoIcon, 'Animate')}
+              {modeButton('edit', WandIcon, 'Edit')}
             </div>
 
-            {/* Sponsor Button */}
             <a
               href="https://github.com/sponsors/jebin2?frequency=one-time&sponsor=jebin2"
               target="_blank"
@@ -323,29 +235,14 @@ const App: React.FC = () => {
               <HeartIcon className="w-4 h-4 sm:w-5 sm:h-5 group-hover:animate-pulse" />
             </a>
 
-            {/* Settings Button */}
             <button
               onClick={openSettings}
-              className="p-2 sm:p-2.5 text-slate-400 hover:text-cute-purple hover:bg-white rounded-full transition-all duration-300 shadow-sm hover:shadow-md hover:rotate-45 hover:scale-110 shrink-0"
-              title="API Key Settings"
+              className={`relative p-2 sm:p-2.5 hover:text-cute-purple hover:bg-white rounded-full transition-all duration-300 shadow-sm hover:shadow-md hover:rotate-45 hover:scale-110 shrink-0 ${apiKey ? 'text-slate-400' : 'text-purple-500 bg-white'}`}
+              title={apiKey ? 'API key' : 'Add your Gemini API key'}
             >
               <SettingsIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+              {!apiKey && <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-pink-400" />}
             </button>
-
-            {/* Auth: Google Sign-In or User Profile */}
-            <div className="shrink-0">
-              {authLoading ? (
-                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/50 animate-pulse" />
-              ) : user ? (
-                <UserProfileMenu user={user} onSignOut={() => setUser(null)} />
-              ) : (
-                <div className="p-[2px] rounded-full bg-gradient-to-r from-cute-pink to-cute-purple shadow-sm hover:shadow-md transition-all duration-300 hover:scale-105">
-                  <div className="bg-white rounded-full overflow-hidden">
-                    <CustomGoogleSignInButton width="auto" />
-                  </div>
-                </div>
-              )}
-            </div>
           </div>
         </div>
       </header>
@@ -357,25 +254,31 @@ const App: React.FC = () => {
           <div className="lg:col-span-5 flex flex-col gap-4 lg:gap-5">
 
             {/* Image Uploader */}
-            <div className="bg-white/60 backdrop-blur-sm border border-white/60 rounded-2xl lg:rounded-3xl p-2 shadow-xl shadow-pink-100/50 transition-all duration-500 hover:shadow-2xl hover:shadow-pink-200/50 hover:scale-[1.01] flex-1 flex flex-col min-h-0">
+            <div className="bg-white/60 backdrop-blur-sm border border-white/60 rounded-2xl lg:rounded-3xl p-2 shadow-xl shadow-pink-100/50 transition-all duration-500 hover:shadow-2xl hover:shadow-pink-200/50 flex-1 flex flex-col min-h-0">
               <div
                 className={`relative group flex-1 min-h-[180px] rounded-xl lg:rounded-2xl border-2 border-dashed transition-all duration-300 flex flex-col items-center justify-center overflow-hidden
-                  ${selectedImage
-                    ? 'border-transparent bg-white'
-                    : 'border-pink-200 bg-pink-50/30 hover:border-pink-300 hover:bg-pink-50/50 cursor-pointer'
+                  ${dragging
+                    ? 'border-purple-300 bg-purple-50/60'
+                    : selectedImage
+                      ? 'border-transparent bg-white'
+                      : 'border-pink-200 bg-pink-50/30 hover:border-pink-300 hover:bg-pink-50/50 cursor-pointer'
                   }`}
                 onClick={() => !selectedImage && fileInputRef.current?.click()}
+                onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+                onDragLeave={() => setDragging(false)}
+                onDrop={(e) => { e.preventDefault(); setDragging(false); loadFile(e.dataTransfer.files?.[0]); }}
               >
                 {selectedImage ? (
                   <>
                     <img
                       src={`data:${mimeType};base64,${selectedImage}`}
-                      alt="Selected"
+                      alt="Your image"
                       className="absolute inset-0 w-full h-full object-contain rounded-xl"
                     />
                     <button
                       onClick={(e) => { e.stopPropagation(); clearAll(); }}
                       className="absolute top-2 right-2 p-2 bg-white/80 text-red-400 hover:text-red-500 rounded-xl backdrop-blur-sm border border-white/50 shadow-sm transition-colors hover:shadow-md z-10"
+                      title="Remove image"
                     >
                       <TrashIcon className="w-4 h-4" />
                     </button>
@@ -385,8 +288,8 @@ const App: React.FC = () => {
                     <div className="w-16 h-16 lg:w-20 lg:h-20 rounded-full bg-white shadow-lg shadow-pink-100 flex items-center justify-center mb-3 lg:mb-4 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300">
                       <UploadIcon className="w-7 h-7 lg:w-8 lg:h-8 text-pink-300 group-hover:text-pink-400 transition-colors" />
                     </div>
-                    <p className="text-slate-700 font-extrabold text-base lg:text-lg">Click to upload image</p>
-                    <p className="text-slate-500 text-sm mt-1 font-medium">JPG, PNG supported</p>
+                    <p className="text-slate-700 font-extrabold text-base lg:text-lg">Drop, paste or click to add an image</p>
+                    <p className="text-slate-500 text-sm mt-1 font-medium">JPG, PNG or WebP, up to 15 MB</p>
                   </>
                 )}
                 <input
@@ -394,7 +297,7 @@ const App: React.FC = () => {
                   ref={fileInputRef}
                   className="hidden"
                   accept="image/*"
-                  onChange={handleImageUpload}
+                  onChange={(e) => loadFile(e.target.files?.[0])}
                 />
               </div>
             </div>
@@ -403,15 +306,15 @@ const App: React.FC = () => {
             <div className="bg-white/80 backdrop-blur-md border border-white/60 rounded-2xl lg:rounded-3xl p-4 lg:p-5 space-y-4 lg:space-y-5 shadow-xl shadow-purple-100/50">
               <div>
                 <label className="block text-sm font-extrabold text-slate-700 mb-2 lg:mb-3 ml-1">
-                  {mode === 'animate' ? 'Animation Description' : 'Edit Instructions'}
+                  {mode === 'animate' ? 'Motion' : 'Edit instructions'}
                 </label>
 
                 {mode === 'animate' && isAutoPrompt ? (
                   <div className="relative animate-in fade-in zoom-in-95 duration-200">
                     <div className="w-full bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-100 rounded-xl lg:rounded-2xl p-3 lg:p-4 text-slate-600 h-24 lg:h-28 overflow-y-auto shadow-inner">
-                      <div className="flex items-center gap-2 mb-2 sticky top-0 bg-transparent">
+                      <div className="flex items-center gap-2 mb-2">
                         <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/80 text-purple-500 text-xs font-bold border border-purple-100 shadow-sm">
-                          <SparklesIcon className="w-3 h-3" /> AI Generated
+                          <SparklesIcon className="w-3 h-3" /> Picked by Gemini
                         </span>
                       </div>
                       <p className="text-sm leading-relaxed opacity-90 font-medium">{prompt}</p>
@@ -421,7 +324,7 @@ const App: React.FC = () => {
                         onClick={() => setIsAutoPrompt(false)}
                         className="px-3 py-1 bg-white/80 hover:bg-white text-slate-500 hover:text-purple-500 text-xs font-bold rounded-lg border border-white shadow-sm transition-all backdrop-blur-sm"
                       >
-                        Edit
+                        Change
                       </button>
                     </div>
                   </div>
@@ -430,10 +333,10 @@ const App: React.FC = () => {
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
                     placeholder={mode === 'animate'
-                      ? "Leave empty for AI auto-description, or describe the movement..."
-                      : "E.g., Add a cyberpunk neon glow, remove background..."
+                      ? 'Describe the movement, or leave empty and Gemini will pick one…'
+                      : 'E.g. add a neon glow, remove the background…'
                     }
-                    className="w-full bg-white border border-slate-200 rounded-xl lg:rounded-2xl p-3 lg:p-4 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-pink-100 focus:border-pink-300 transition-all duration-300 focus:scale-[1.01] resize-none h-24 lg:h-28 shadow-sm font-medium"
+                    className="w-full bg-white border border-slate-200 rounded-xl lg:rounded-2xl p-3 lg:p-4 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-pink-100 focus:border-pink-300 transition-all duration-300 resize-none h-24 lg:h-28 shadow-sm font-medium"
                   />
                 )}
               </div>
@@ -441,32 +344,20 @@ const App: React.FC = () => {
               {mode === 'animate' && (
                 <div>
                   <label className="block text-sm font-extrabold text-slate-700 mb-2 lg:mb-3 ml-1">
-                    Output Aspect Ratio
+                    Shape
                   </label>
                   <div className="grid grid-cols-2 gap-3">
-                    <button
-                      onClick={() => setAspectRatio('16:9')}
-                      className={`py-2.5 lg:py-3 px-4 rounded-xl border text-sm font-bold transition-all duration-300 hover:scale-105 active:scale-95 ${aspectRatio === '16:9'
-                        ? 'bg-pink-50 border-pink-200 text-pink-600 shadow-inner'
-                        : 'bg-white border-slate-100 text-slate-600 hover:border-pink-200 hover:text-pink-500'
-                        }`}
-                    >
-                      Landscape (16:9)
-                    </button>
-                    <button
-                      onClick={() => setAspectRatio('9:16')}
-                      className={`py-2.5 lg:py-3 px-4 rounded-xl border text-sm font-bold transition-all duration-300 hover:scale-105 active:scale-95 ${aspectRatio === '9:16'
-                        ? 'bg-pink-50 border-pink-200 text-pink-600 shadow-inner'
-                        : 'bg-white border-slate-100 text-slate-600 hover:border-pink-200 hover:text-pink-500'
-                        }`}
-                    >
-                      Portrait (9:16)
-                    </button>
+                    {ratioButton('16:9', 'Landscape (16:9)')}
+                    {ratioButton('9:16', 'Portrait (9:16)')}
                   </div>
+                  <label className="mt-3 ml-1 flex items-start gap-2 cursor-pointer select-none">
+                    <input type="checkbox" checked={loop} onChange={e => setLoop(e.target.checked)} className="mt-1 accent-purple-500" />
+                    <span className="text-sm text-slate-600">
+                      <span className="font-bold text-slate-700">Seamless loop.</span> The clip ends on your image, so it repeats without a jump.
+                    </span>
+                  </label>
                 </div>
               )}
-
-
 
               <button
                 onClick={handleGenerateClick}
@@ -477,10 +368,10 @@ const App: React.FC = () => {
                     : 'bg-gradient-to-r from-cute-pink to-cute-purple text-white hover:shadow-pink-300/50 hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]'
                   }`}
               >
-                {processing.isLoading ? 'Processing...' : (
+                {processing.isLoading ? `Working… ${elapsedText}` : (
                   <>
                     <SparklesIcon className="w-5 h-5" />
-                    {mode === 'animate' ? 'Generate Video' : 'Generate Edit'}
+                    {mode === 'animate' ? 'Animate' : 'Edit image'}
                   </>
                 )}
               </button>
@@ -488,49 +379,47 @@ const App: React.FC = () => {
           </div>
 
           {/* RIGHT COLUMN: Results */}
-          <div className="lg:col-span-7 flex flex-col">
+          <div className="lg:col-span-7 flex flex-col min-h-[320px]">
             <div className="flex-1 bg-white/60 backdrop-blur-md border border-white/60 rounded-2xl lg:rounded-3xl p-2 overflow-hidden flex flex-col shadow-xl shadow-blue-100/50">
               <div className="flex-1 bg-white/50 rounded-xl lg:rounded-2xl flex items-center justify-center relative overflow-hidden border-2 border-dashed border-white/50">
 
-                {/* Empty State */}
                 {!processing.isLoading && !resultImage && !resultVideo && (
                   <div className="text-center p-6 lg:p-8 opacity-80">
                     <div className="w-20 h-20 lg:w-24 lg:h-24 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-purple-100">
                       {mode === 'animate' ? <VideoIcon className="w-8 h-8 lg:w-10 lg:h-10 text-purple-400" /> : <WandIcon className="w-8 h-8 lg:w-10 lg:h-10 text-purple-400" />}
                     </div>
-                    <p className="text-lg lg:text-xl font-extrabold text-slate-700">Ready to create magic</p>
-                    <p className="text-slate-500 text-sm lg:text-base font-medium">Upload an image and click Generate</p>
+                    <p className="text-lg lg:text-xl font-extrabold text-slate-700">Bring a picture to life</p>
+                    <p className="text-slate-500 text-sm lg:text-base font-medium max-w-sm mx-auto">
+                      {mode === 'animate'
+                        ? 'Add an image and press Animate. Veo makes a short clip, about 8 seconds.'
+                        : 'Add an image, describe the change, and press Edit image.'}
+                    </p>
                   </div>
                 )}
 
-                {/* Loading State */}
                 {processing.isLoading && (
-                  <LoadingSpinner
-                    message={processing.statusMessage}
-                    subMessage={mode === 'animate' ? "Crafting your frames..." : "Painting pixels..."}
-                  />
+                  <LoadingSpinner message={processing.statusMessage} subMessage={`${elapsedText} elapsed`} />
                 )}
 
-                {/* Result: Image */}
                 {!processing.isLoading && resultImage && (
                   <div className="w-full h-full flex flex-col animate-in zoom-in-95 duration-300">
                     <div className="flex-1 p-4 flex items-center justify-center">
-                      <img src={resultImage} alt="Edited Result" className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl shadow-purple-200/50" />
+                      <img src={resultImage} alt="Edited result" className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl shadow-purple-200/50" />
                     </div>
                     <div className="p-4 bg-white/80 backdrop-blur-md border-t border-white/50 flex justify-between items-center">
-                      <span className="text-sm text-slate-500 font-bold">Enhanced Image Result</span>
+                      <span className="text-sm text-slate-500 font-bold">Edited image</span>
                       <a
                         href={resultImage}
-                        download="edited-image.png"
-                        className="px-4 py-2 bg-white hover:bg-purple-50 text-slate-600 hover:text-purple-600 rounded-xl text-sm font-bold border border-slate-100 shadow-sm transition-all duration-300 hover:scale-105 active:scale-95"
+                        download={`${fileName}-edited.png`}
+                        className="px-4 py-2 bg-white hover:bg-purple-50 text-slate-600 hover:text-purple-600 rounded-xl text-sm font-bold border border-slate-100 shadow-sm transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-2"
                       >
-                        Download Image
+                        <DownloadIcon className="w-4 h-4" />
+                        Download
                       </a>
                     </div>
                   </div>
                 )}
 
-                {/* Result: Video */}
                 {!processing.isLoading && resultVideo && (
                   <div className="w-full h-full flex flex-col animate-in zoom-in-95 duration-300">
                     <div className="flex-1 bg-black/5 flex items-center justify-center rounded-t-2xl overflow-hidden">
@@ -539,83 +428,33 @@ const App: React.FC = () => {
                         controls
                         loop
                         autoPlay
+                        muted
+                        playsInline
                         className="max-w-full max-h-full shadow-2xl"
                         style={{ aspectRatio: aspectRatio.replace(':', '/') }}
                       />
                     </div>
                     <div className="p-4 bg-white/80 backdrop-blur-md border-t border-white/50 flex justify-between items-center">
                       <div className="flex flex-col">
-                        <span className="text-sm text-slate-600 font-bold">Video Generation Result</span>
+                        <span className="text-sm text-slate-600 font-bold">{videoInfo?.looped ? 'Seamless loop' : 'Your clip'}</span>
+                        {videoInfo && <span className="text-xs text-slate-400">{videoInfo.model}</span>}
                       </div>
-
                       <div className="flex items-center gap-2">
-                        {/* Delete Button */}
-                        {currentJobId && (
-                          <button
-                            onClick={async () => {
-                              if (!confirm('Are you sure you want to delete this video?')) return;
-                              await videoStorageService.deleteVideo(currentJobId);
-                              // Also call API to delete job if needed, but for now just clear UI
-                              setResultVideo(null);
-                              setCurrentJobId(null);
-                            }}
-                            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
-                            title="Delete Video"
-                          >
-                            <TrashIcon className="w-5 h-5" />
-                          </button>
-                        )}
-
-                        {/* Download Button */}
                         <button
-                          onClick={async () => {
-                            if (!currentJobId) {
-                              // Fallback for client-side mode or no jobId
-                              const a = document.createElement('a');
-                              a.href = resultVideo;
-                              a.download = 'generated-video.mp4';
-                              document.body.appendChild(a);
-                              a.click();
-                              document.body.removeChild(a);
-                              return;
-                            }
-
-                            setIsDownloading(true);
-                            try {
-                              // 1. Check local
-                              let url = await videoStorageService.getVideoUrl(currentJobId);
-
-                              // 2. Download and store if missing
-                              if (!url) {
-                                await videoStorageService.downloadAndStore(currentJobId);
-                                url = await videoStorageService.getVideoUrl(currentJobId);
-                              }
-
-                              // 3. Trigger download
-                              if (url) {
-                                const a = document.createElement('a');
-                                a.href = url;
-                                a.download = `video-${currentJobId}.mp4`;
-                                document.body.appendChild(a);
-                                a.click();
-                                document.body.removeChild(a);
-                              }
-                            } catch (err: any) {
-                              alert(err.message || 'Failed to download');
-                            } finally {
-                              setIsDownloading(false);
-                            }
-                          }}
-                          disabled={isDownloading}
+                          onClick={handleGenerateClick}
+                          className="p-2 text-slate-400 hover:text-purple-500 hover:bg-purple-50 rounded-xl transition-colors"
+                          title="Make another version"
+                        >
+                          <RefreshIcon className="w-5 h-5" />
+                        </button>
+                        <a
+                          href={resultVideo}
+                          download={`${fileName}-animated.mp4`}
                           className="px-4 py-2 rounded-xl text-sm font-bold border shadow-sm transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-2 bg-white hover:bg-purple-50 text-slate-600 hover:text-purple-600 border-slate-100"
                         >
-                          {isDownloading ? (
-                            <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                          ) : (
-                            <DownloadIcon className="w-4 h-4" />
-                          )}
+                          <DownloadIcon className="w-4 h-4" />
                           Download
-                        </button>
+                        </a>
                       </div>
                     </div>
                   </div>
@@ -626,16 +465,20 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      {/* API Key Modal */}
+      <footer className="w-[95%] lg:w-[90%] mx-auto pb-3 text-center text-xs text-slate-400">
+        Runs in your browser with your own Gemini API key; your key and images go only to Google.{' '}
+        <a href="https://github.com/jebin2/animateimage" target="_blank" rel="noreferrer" className="font-bold hover:text-purple-500">Source on GitHub</a>
+      </footer>
+
       <ApiKeyModal
         isOpen={showApiKeyModal}
-        onClose={() => setShowApiKeyModal(false)}
-        onSubmit={handleApiKeySubmit}
-        errorMessage={modalError}
-        user={user}
+        initialKey={apiKey}
+        initialRemember={rememberKey}
+        onClose={() => { setShowApiKeyModal(false); setPendingAutoGenerate(false); }}
+        onSave={handleKeySave}
+        onForget={handleKeyForget}
       />
 
-      {/* Toast Notifications */}
       <ToastContainer />
     </div>
   );
