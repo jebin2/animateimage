@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { SparklesIcon, AlertCircleIcon, TrashIcon } from './Icons';
-import { checkKey } from '../services/geminiService';
+import { checkKey, NO_VEO } from '../services/geminiService';
+import { showWarning } from '../services/toastService';
 
 interface ApiKeyModalProps {
   isOpen: boolean;
@@ -35,7 +36,8 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, initialKey, initialRe
     setChecking(true);
     setError(null);
     try {
-      await checkKey(k);
+      const models = await checkKey(k);
+      if (!models.video) showWarning(NO_VEO, 12000);
       onSave(k, remember);
     } catch (e: any) {
       setError(e?.message || 'Could not check the key.');

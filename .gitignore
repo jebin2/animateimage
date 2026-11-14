@@ -26,3 +26,6 @@ dist-ssr
 # Private keys
 PRIVATE_KEY.pem
 *.pem
+
+# diagnose.ts output
+scripts/out.*

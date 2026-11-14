@@ -19,14 +19,19 @@ export interface VideoOptions extends GeminiOptions {
 // Google renames and retires models (especially previews), so the app asks the
 // API which models this key can use and takes the first match from each list.
 // Newest and best first; add new names at the top.
+// The motion description is one short sentence: a Lite model writes it in a
+// second or two, where full Flash thinks for ~25 s.
 const PREFERRED = {
-  text: ['gemini-3.5-flash', 'gemini-3-flash', 'gemini-2.5-flash', 'gemini-flash-latest'],
+  text: ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-2.5-flash-lite', 'gemini-flash-lite-latest', 'gemini-2.5-flash', 'gemini-flash-latest'],
   image: ['gemini-3.1-flash-image', 'gemini-3.1-flash-lite-image', 'gemini-3.1-flash-image-preview', 'gemini-2.5-flash-image'],
   video: ['veo-3.1-generate-001', 'veo-3.1-generate-preview', 'veo-3.1-fast-generate-001', 'veo-3.1-fast-generate-preview', 'veo-3.0-generate-001'],
 } as const;
 
 type Kind = keyof typeof PREFERRED;
-export type Models = Record<Kind, string>;
+/** video is null when the key can't use Veo (its project has no billing). */
+export type Models = { text: string; image: string; video: string | null };
+
+export const NO_VEO = "This key can't use Veo, Google's video model: it only appears for projects with billing turned on. Turn on billing for the key's project in Google AI Studio, then try again. Edit works without it.";
 
 const modelCache = new Map<string, Promise<Models>>();
 
@@ -35,13 +40,14 @@ function client(apiKey: string): GoogleGenAI {
   return new GoogleGenAI({ apiKey });
 }
 
-async function listModelNames(ai: GoogleGenAI): Promise<Set<string>> {
-  const names = new Set<string>();
+/** Model name -> what it can do (generateContent, predictLongRunning, …). */
+async function listModels(ai: GoogleGenAI): Promise<Map<string, string[]>> {
+  const models = new Map<string, string[]>();
   const pager = await ai.models.list({ config: { pageSize: 1000 } });
   for await (const m of pager) {
-    if (m.name) names.add(m.name.replace(/^models\//, ''));
+    if (m.name) models.set(m.name.replace(/^models\//, ''), m.supportedActions || []);
   }
-  return names;
+  return models;
 }
 
 /** The models this key will use, picked from what the key can actually see. */
@@ -49,24 +55,22 @@ export function resolveModels(apiKey: string): Promise<Models> {
   let p = modelCache.get(apiKey);
   if (!p) {
     p = (async () => {
-      let available: Set<string> | null = null;
+      let available: Map<string, string[]>;
       try {
-        available = await listModelNames(client(apiKey));
+        available = await listModels(client(apiKey));
       } catch (e) {
         throw friendlyError(e);
       }
-      const pick = (kind: Kind, family: RegExp): string => {
-        const wanted = PREFERRED[kind].find(n => available!.has(n));
-        if (wanted) return wanted;
-        // Nothing from the list: the newest-looking model of the same family.
-        const any = [...available!].filter(n => family.test(n)).sort().reverse()[0];
-        return any || PREFERRED[kind][0];
-      };
-      return {
-        text: pick('text', /^gemini-[\d.]+-flash$/),
-        image: pick('image', /^gemini-[\d.]+-flash(-lite)?-image/),
-        video: pick('video', /^veo-/),
-      };
+      const can = (name: string, action: string) => available.get(name)?.includes(action) ?? false;
+      // First preferred name the key has, else the newest-looking one of the family.
+      const pick = (kind: Kind, action: string, family: RegExp): string | null =>
+        PREFERRED[kind].find(n => can(n, action))
+        ?? [...available.keys()].filter(n => family.test(n) && can(n, action)).sort().reverse()[0]
+        ?? null;
+      const text = pick('text', 'generateContent', /^gemini-[\d.]+-flash(-lite)?$/);
+      const image = pick('image', 'generateContent', /^gemini-[\d.]+-flash(-lite)?-image$/);
+      if (!text || !image) throw new Error("This key can't use Gemini's text or image models. Check the key in Google AI Studio.");
+      return { text, image, video: pick('video', 'predictLongRunning', /^veo-/) };
     })();
     p.catch(() => modelCache.delete(apiKey));
     modelCache.set(apiKey, p);
@@ -177,11 +181,13 @@ export async function generateVideo(
 ): Promise<{ url: string; blob: Blob; model: string; looped: boolean }> {
   const { apiKey, aspectRatio, onStatus } = options;
   const models = await resolveModels(apiKey);
+  if (!models.video) throw new Error(NO_VEO);
+  const video = models.video;
   const ai = client(apiKey);
   const image = { imageBytes: base64Image, mimeType };
 
   const start = (loop: boolean) => ai.models.generateVideos({
-    model: models.video,
+    model: video,
     prompt,
     image,
     config: { numberOfVideos: 1, aspectRatio, ...(loop ? { lastFrame: image } : {}) },
@@ -225,5 +231,5 @@ export async function generateVideo(
 
   onStatus?.('Downloading the video…');
   const blob = await fetchVideo(uri, apiKey);
-  return { url: URL.createObjectURL(blob), blob, model: models.video, looped };
+  return { url: URL.createObjectURL(blob), blob, model: video, looped };
 }
