@@ -37,8 +37,7 @@ when you close the tab. **Forget key** removes it. Don't remember it on a
 shared computer.
 
 The app asks Google which models your key can use and picks the best one it
-knows (Gemini Omni Flash for video, or Veo if a key still has it; the newest
-Gemini Flash and Flash Image), so
+knows (Gemini Omni Flash for video; the newest Gemini Flash and Flash Image), so
 renamed or retired preview models don't break it.
 
 ## Run it yourself

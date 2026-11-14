@@ -20,8 +20,8 @@ log("listing models…");
 const ai = new GoogleGenAI({ apiKey: key });
 const all: string[] = [];
 for await (const m of await ai.models.list({ config: { pageSize: 1000 } })) all.push(`${m.name}  [${(m.supportedActions || []).join(",")}]`);
-log(`${all.length} models; veo / image / flash ones:`);
-for (const l of all.filter(l => /veo|image|flash/.test(l))) console.log("         " + l);
+log(`${all.length} models; omni / image / flash ones:`);
+for (const l of all.filter(l => /omni|image|flash/.test(l))) console.log("         " + l);
 
 const models = await resolveModels(key);
 log(`app picks: ${JSON.stringify(models)}`);
