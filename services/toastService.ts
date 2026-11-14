@@ -37,6 +37,11 @@ function generateId(): string {
  * @returns The toast ID (can be used to dismiss it)
  */
 export function showToast(config: ToastConfig): string {
+    // The same message already showing (e.g. the key warning and then the
+    // generate error): don't stack a second copy.
+    const same = toasts.find(t => t.message === config.message);
+    if (same) return same.id;
+
     const id = config.id || generateId();
     const duration = config.duration ?? 4000;
 
